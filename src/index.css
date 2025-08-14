@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global overrides for Strike */
+:root { --radius: 1.25rem; }
+* { -webkit-tap-highlight-color: transparent; }
+a { text-underline-offset: 2px; }
+
+.container { @apply mx-auto max-w-7xl px-4; }
