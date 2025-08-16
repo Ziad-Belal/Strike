@@ -22,7 +22,6 @@ export default function CartDrawer({ open, onClose, items, removeItem }) {
           <div key={idx} className='flex gap-3 rounded-2xl border border-black/10 p-3'>
             <img src={it.img} alt={it.name} className='h-20 w-20 rounded-xl object-cover'/>
             <div className='flex-1'>
-              <div className='text-sm text-black/60'>{it.category.toUpperCase()}</div>
               <div className='font-medium'>{it.name}</div>
               <div className='text-sm'>EU {it.size} • Qty {it.qty}</div>
             </div>

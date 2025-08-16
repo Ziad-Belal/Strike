@@ -19,7 +19,6 @@ export default function Footer() {
         <FooterCol title='About'>
           <a className='block text-sm text-black/70 hover:text-black' href='#'>Sustainability</a>
           <a className='block text-sm text-black/70 hover:text-black' href='#'>Athletes</a>
-          <a className='block text-sm text-black/70 hover:text-black' href='#'>Careers</a>
         </FooterCol>
         <div>
           <div className='text-sm font-semibold'>Join our newsletter</div>

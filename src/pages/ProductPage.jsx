@@ -9,6 +9,7 @@ export default function ProductPage({ addToCart }) {
   const { slug } = useParams()
   const product = PRODUCTS.find(p => p.id === slug)
   const [selectedSize, setSelectedSize] = React.useState(null)
+  const [selectedImage, setSelectedImage] = React.useState(product ? product.img : '')
   const [qty, setQty] = React.useState(1)
 
   if (!product) return <div className='container py-10'>Product not found.</div>
@@ -16,9 +17,13 @@ export default function ProductPage({ addToCart }) {
   return (
     <div className='container py-10'>
       <div className='grid gap-8 md:grid-cols-2'>
-        <div className='space-y-4'>
-          <img src={product.img} alt={product.name} className='w-full rounded-3xl object-cover' />
-          <img src={product.hoverImg} alt={product.name} className='w-full rounded-3xl object-cover' />
+        <div>
+          <img src={selectedImage} alt={product.name} className='w-full rounded-3xl object-cover' />
+          <div className='mt-4 flex gap-4 overflow-x-auto'>
+            {product.images.map((img, index) => (
+              <img key={index} src={img} alt={product.name} className={`w-20 h-20 object-cover rounded-md cursor-pointer ${selectedImage === img ? 'border-2 border-black' : ''}`} onClick={() => setSelectedImage(img)} />
+            ))}
+          </div>
         </div>
         <div>
           <div className='text-sm text-black/60'>{product.category.toUpperCase()}</div>

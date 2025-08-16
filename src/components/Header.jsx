@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ShoppingCart, User, Search, Globe, ChevronDown, Menu, X } from 'lucide-react'
 import { Modal, Sheet, Button, Input, Badge } from './atoms.jsx'
 import { PRODUCTS } from '../utils/products.js'
@@ -13,6 +13,8 @@ const NAV = [
 export default function Header({ cartCount, onOpenCart }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const location = useLocation()
+
   return (
     <header className='sticky top-0 z-40 w-full bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-black/5'>
       <div className='container'>
@@ -58,6 +60,7 @@ export default function Header({ cartCount, onOpenCart }) {
         </div>
         <div className='mt-6 space-y-1'>
           {NAV.map((c) => (
+            // Close the mobile menu when a link is clicked
             <Link key={c.key} to={c.to} onClick={() => setMobileOpen(false)} className='block rounded-2xl px-3 py-3 text-base hover:bg-black/5'>{c.label}</Link>
           ))}
           <div className='pt-3'>
@@ -65,6 +68,7 @@ export default function Header({ cartCount, onOpenCart }) {
           </div>
         </div>
       </Sheet>
+
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
