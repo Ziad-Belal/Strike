@@ -17,7 +17,6 @@ export default function ProductCard({ product }) {
       </div>
       <div className='mt-3 flex items-start justify-between gap-4'>
         <div>
-          <div className='text-xs text-black/60'>{product.sport}</div>
           <div className='font-medium leading-tight'>{product.name}</div>
           <div className='flex items-center gap-1 text-sm text-black/70'>
             <Star size={16} className='fill-black'/> {product.rating}

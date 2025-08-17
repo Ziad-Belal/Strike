@@ -50,7 +50,7 @@ export default function Header({ cartCount, onOpenCart }) {
         </div>
       </div>
 
-      <Sheet open={mobileOpen} onClose={() => setMobileOpen(false)} side='left'>
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen} side='left'>
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-2'>
             <div className='grid h-8 w-8 place-content-center rounded-xl bg-black text-white font-black'>S</div>

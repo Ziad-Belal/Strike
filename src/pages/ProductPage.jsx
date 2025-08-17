@@ -17,13 +17,16 @@ export default function ProductPage({ addToCart }) {
   return (
     <div className='container py-10'>
       <div className='grid gap-8 md:grid-cols-2'>
-        <div>
-          <img src={selectedImage} alt={product.name} className='w-full rounded-3xl object-cover' />
-          <div className='mt-4 flex gap-4 overflow-x-auto'>
-            {product.images.map((img, index) => (
-              <img key={index} src={img} alt={product.name} className={`w-20 h-20 object-cover rounded-md cursor-pointer ${selectedImage === img ? 'border-2 border-black' : ''}`} onClick={() => setSelectedImage(img)} />
-            ))}
-          </div>
+        <div className="flex flex-col items-center">
+          <img src={selectedImage} alt={product.name} className='w-full rounded-3xl object-cover aspect-[3/2] max-h-[600px]' />
+          {product.images && Array.isArray(product.images) && product.images.length > 0 && (
+            <div className='mt-4 flex gap-4 overflow-x-auto justify-center'>
+              {product.images.map((img, index) => (
+                <img key={index} src={img} alt={product.name} className={`w-20 h-20 object-cover rounded-md cursor-pointer ${selectedImage === img ? 'border-2 border-black' : ''}`} onClick={() => setSelectedImage(img)} />
+              ))}
+
+            </div>
+          )}
         </div>
         <div>
           <div className='text-sm text-black/60'>{product.category.toUpperCase()}</div>
@@ -51,7 +54,6 @@ export default function ProductPage({ addToCart }) {
           </div>
 
           <div className='mt-8 space-y-3 text-sm text-black/70'>
-            <div className='flex items-center gap-2'><Truck size={18}/> Free delivery over $100</div>
             <div>{product.description}</div>
           </div>
         </div>
