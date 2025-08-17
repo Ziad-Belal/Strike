@@ -1,19 +1,20 @@
 import React from 'react'
 import HeroCarousel from '../components/HeroCarousel.jsx'
 import ProductGrid from '../components/ProductGrid.jsx'
-import { PRODUCTS } from '../utils/products.js'
 
-export default function Home() {
+export default function Home({ products }) {
   return (
     <div>
       <HeroCarousel />
+
       <section className='container py-10'>
         <SectionHeader title='New Arrivals' linkText='Shop New Arrivals' linkTo='/new-arrivals' />
-        <ProductGrid products={PRODUCTS} />
+        <ProductGrid products={products} />
       </section>
+
       <section className='container py-10'>
         <SectionHeader title='Trending Now' linkText='Explore New Arrivals' linkTo='/new-arrivals' />
-        <ProductGrid products={PRODUCTS} />
+        <ProductGrid products={products} />
       </section>
     </div>
   )
