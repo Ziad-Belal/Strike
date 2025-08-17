@@ -6,21 +6,23 @@ import Home from './pages/Home.jsx'
 import Category from './pages/Category.jsx'
 import ProductPage from './pages/ProductPage.jsx'
 import CartDrawer from './components/CartDrawer.jsx'
-import { collection, getDocs } from 'firebase/firestore'
-import { db } from './firebase' // make sure firebase.js has real config
+import { supabase } from './supabase' // Supabase client
 
 export default function App() {
   const [cartOpen, setCartOpen] = useState(false)
   const [cartItems, setCartItems] = useState([])
   const [products, setProducts] = useState([])
 
-  // Fetch products from Firestore on load
+  // Fetch products from Supabase on load
   useEffect(() => {
     const fetchProducts = async () => {
-      const querySnapshot = await getDocs(collection(db, "products"))
-      const productsData = querySnapshot.docs.map(doc => doc.data())
-      setProducts(productsData)
-      console.log("Products fetched:", productsData)
+      const { data, error } = await supabase.from("products").select("*")
+      if (error) {
+        console.error("Error fetching products:", error)
+      } else {
+        setProducts(data)
+        console.log("Products fetched:", data)
+      }
     }
     fetchProducts()
   }, [])
