@@ -1,29 +1,61 @@
-import React from 'react'
+// src/pages/Category.jsx
+
+import React, { useState, useEffect } from 'react'
 import Filters from '../components/Filters.jsx'
 import ProductGrid from '../components/ProductGrid.jsx'
-import { PRODUCTS } from '../utils/products.js'
+import { supabase } from '../supabase' // Make sure this path is correct
 
 export default function Category({ category }) {
-  const [filtersOpen, setFiltersOpen] = React.useState(false)
-  const [size, setSize] = React.useState(null)
-  const [color, setColor] = React.useState(null)
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const filtered = React.useMemo(() => {
-    return PRODUCTS.filter(p => {
-      const inCategory =
-        category === 'sale' ? p.badges?.includes('Sale') :
-        category === 'new' ? p.badges?.includes('New') :
-        p.category === category
-      const sizeOk = !size || p.sizes.includes(size)
-      const colorOk = !color || p.colors.includes(color)
-      return inCategory && sizeOk && colorOk
-    })
-  }, [category, size, color])
+  // These filter states can remain for the UI, but we won't use them for now
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [size, setSize] = useState(null)
+  const [color, setColor] = useState(null)
 
+  useEffect(() => {
+    // This function will run whenever the 'category' prop changes
+    async function getProductsByCategory() {
+      setLoading(true)
+
+      // Map the URL category to the database category name
+      let dbCategory = category;
+      if (category === 'new') {
+        dbCategory = 'New Arrivals';
+      } else if (category === 'sale') {
+        dbCategory = 'Sale';
+      } else {
+        // Capitalize first letter for "men", "women", etc.
+        dbCategory = category.charAt(0).toUpperCase() + category.slice(1);
+      }
+
+      // Fetch products where the 'category' column matches
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('category', dbCategory) // The filtering happens here!
+
+      if (error) {
+        console.error('Error fetching category products:', error)
+      } else {
+        setProducts(data)
+      }
+      setLoading(false)
+    }
+
+    getProductsByCategory()
+  }, [category]) // The effect re-runs if you navigate from /men to /women
+
+  // This logic correctly sets the page title
   const title =
     category === 'sale' ? 'Sales' :
     category === 'new' ? 'New Arrivals' :
     category.charAt(0).toUpperCase() + category.slice(1)
+
+  if (loading) {
+    return <div className='container py-8 text-center'>Loading Products...</div>
+  }
 
   return (
     <div className='container py-8'>
@@ -34,14 +66,17 @@ export default function Category({ category }) {
 
       <div className='grid grid-cols-1 gap-8 md:grid-cols-[240px,1fr]'>
         <aside className='hidden md:block'>
+          {/* The Filters component is still here, but won't do anything yet */}
           <Filters size={size} setSize={setSize} color={color} setColor={setColor} />
         </aside>
         <main>
-          <div className='mb-4 text-sm text-black/60'>{filtered.length} products</div>
-          <ProductGrid products={filtered} />
+          {/* Use the new 'products' state from Supabase */}
+          <div className='mb-4 text-sm text-black/60'>{products.length} products</div>
+          <ProductGrid products={products} />
         </main>
       </div>
 
+      {/* The mobile filter UI remains the same */}
       {filtersOpen && (
         <div className='fixed inset-0 z-40 bg-black/50 p-4 md:hidden' onClick={() => setFiltersOpen(false)}>
           <div className='mx-auto max-w-sm rounded-3xl bg-white p-4' onClick={(e)=>e.stopPropagation()}>
