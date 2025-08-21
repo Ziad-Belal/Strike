@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import HeroCarousel from '../components/HeroCarousel.jsx'
 import ProductGrid from '../components/ProductGrid.jsx'
-import { supabase } from '../utils/supabaseClient' // Make sure this path is correct!
+import { supabase } from '../supabase' 
 
 export default function Home() {
   // 1. State to store the products

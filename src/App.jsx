@@ -9,7 +9,7 @@ import Category from './pages/Category.jsx'
 import ProductPage from './pages/ProductPage.jsx'
 import CartDrawer from './components/CartDrawer.jsx'
 // Make sure this import path is correct for your project
-import { supabase } from './utils/supabaseClient' 
+import { supabase } from './supabase' 
 
 export default function App() {
   const [cartOpen, setCartOpen] = useState(false)

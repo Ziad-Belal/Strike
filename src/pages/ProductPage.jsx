@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { supabase } from '../utils/supabaseClient' // Make sure this path is correct
+import { supabase } from '../supabase'
 import { Input, Button } from '../components/atoms.jsx'
 import { Star, Truck, Heart, ShoppingCart } from 'lucide-react'
 
