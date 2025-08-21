@@ -8,116 +8,122 @@ import Home from './pages/Home.jsx'
 import Category from './pages/Category.jsx'
 import ProductPage from './pages/ProductPage.jsx'
 import CartDrawer from './components/CartDrawer.jsx'
-// Make sure this import path is correct for your project
+import SignUp from './pages/SignUp.jsx';
+import Login from './pages/Login.jsx';
 import { supabase } from './supabase' 
 
 export default function App() {
   const [cartOpen, setCartOpen] = useState(false)
   const [cartItems, setCartItems] = useState([])
+  
+  // --- NEW: STATE TO MANAGE USER SESSION ---
+  // This state will hold the user's data if they are logged in, otherwise it's null.
+  const [session, setSession] = useState(null)
 
-  // 1. REMOVED: No longer need to fetch all products here.
-  // Components like Home.jsx now fetch their own data. This is more efficient.
+  // --- NEW: LISTENER FOR LOGIN/LOGOUT EVENTS ---
+  // This useEffect runs once and listens for any authentication changes (login, logout).
+  // It keeps our 'session' state perfectly in sync with Supabase.
+  useEffect(() => {
+    // Check for an active session when the app loads
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
 
-  // 2. IMPROVED: The addToCart function now handles quantity updates.
+    // The listener itself
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    // Cleanup the listener when the component is unmounted
+    return () => subscription.unsubscribe()
+  }, [])
+
+  
+  // The addToCart and removeItem functions are unchanged, they are perfect.
   const addToCart = (product, size, qty) => {
     if (!size) { 
       alert('Please select a size first.'); 
       return; 
     }
-
     setCartItems(prevItems => {
-      // Check if the item (with the same ID and size) is already in the cart
       const existingItem = prevItems.find(item => item.id === product.id && item.size === size);
-
       if (existingItem) {
-        // If it exists, update the quantity
         return prevItems.map(item =>
           item.id === product.id && item.size === size
             ? { ...item, qty: item.qty + qty }
             : item
         );
       } else {
-        // If it's a new item, add it to the cart
         return [...prevItems, { ...product, size, qty }];
       }
     });
-    setCartOpen(true); // Open cart after adding an item
+    setCartOpen(true);
   };
 
   const removeItem = (productToRemove) => {
     setCartItems(prevItems => prevItems.filter(item => 
-      // We need a more robust way to identify the item, e.g., by id and size
       !(item.id === productToRemove.id && item.size === productToRemove.size)
     ));
   };
   
-  // 3. NEW: The function to handle the final checkout process.
+  // --- UPDATED: THE NEW CHECKOUT FUNCTION ---
+  // This function is now completely different.
   const handleCheckout = async () => {
+    // 1. Check if the user is logged in using our new 'session' state
+    if (!session) {
+      alert("Please log in or create an account to continue.");
+      // Optional: you could redirect to the login page here
+      // navigate('/login');
+      return;
+    }
+    
     if (cartItems.length === 0) {
       alert("Your cart is empty.");
       return;
     }
 
-    // Step A: Calculate total price
-    const total_price = cartItems.reduce((total, item) => {
-      return total + item.price * item.qty;
-    }, 0);
+    // 2. Call our secure Supabase Edge Function
+    // We send the cart items in the body of the request.
+    const { data, error } = await supabase.functions.invoke('create-order-and-notify', {
+      body: { cartItems },
+    });
 
-    // Step B: Create a new order in the 'orders' table
-    // For now, user_id is null. If you implement users, you would put the user's ID here.
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .insert({ total_price: total_price, user_id: null })
-      .select() // .select() returns the newly created order, including its ID
-      .single();
-
-    if (orderError) {
-      console.error("Error creating order:", orderError);
+    if (error) {
+      console.error("Error checking out:", error);
       alert("There was an issue placing your order. Please try again.");
-      return;
+    } else {
+      // 3. Success! The function handled everything.
+      alert("Order placed successfully!");
+      setCartItems([]);
+      setCartOpen(false);
+      console.log("Order created by Edge Function:", data);
     }
-
-    const order_id = orderData.id;
-
-    // Step C: Create the corresponding order items
-    const orderItemsToInsert = cartItems.map(item => ({
-      order_id: order_id,
-      product_id: item.id,
-      quantity: item.qty,
-      price: item.price // This is the price per item at the time of purchase
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItemsToInsert);
-
-    if (itemsError) {
-      console.error("Error creating order items:", itemsError);
-      alert("There was an issue saving your order details. Please try again.");
-      return;
-    }
-
-    // Step D: Success! Clear the cart and give feedback.
-    alert("Order placed successfully!");
-    setCartItems([]);
-    setCartOpen(false);
   };
 
   return (
     <div className='min-h-screen bg-white text-black'>
-      <Header cartCount={cartItems.length} onOpenCart={() => setCartOpen(true)} />
+      {/* --- UPDATED: Pass the session to the Header --- */}
+      {/* Now your Header will know if a user is logged in or not. */}
+      <Header session={session} cartCount={cartItems.length} onOpenCart={() => setCartOpen(true)} />
+      
       <Routes>
-        {/* 4. UPDATED: No longer passing products prop to Home */}
+        {/* Your existing routes are perfect */}
         <Route path='/' element={<Home />} />
         <Route path='/men' element={<Category category='men' />} />
+        <Route path='/women' element={<Category category='women' />} />
         <Route path='/new-arrivals' element={<Category category='new' />} />
         <Route path='/sale' element={<Category category='sale' />} />
-        {/* 5. UPDATED: Route param changed from :slug to :id to match our logic */}
         <Route path='/product/:id' element={<ProductPage addToCart={addToCart} />} />
+        
+        {/* --- NEW: ADDED SIGNUP AND LOGIN ROUTES --- */}
+        <Route path='/signup' element={<SignUp />} />
+        <Route path='/login' element={<Login />} />
+
         <Route path='*' element={<Navigate to='/' replace />} />
       </Routes>
+      
       <Footer />
-      {/* 6. NEW: Pass the handleCheckout function to the CartDrawer */}
+      
       <CartDrawer 
         open={cartOpen} 
         onClose={() => setCartOpen(false)} 

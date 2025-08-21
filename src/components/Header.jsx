@@ -1,19 +1,27 @@
-import React, { useState, useMemo } from 'react'
+
+import React, { useState, useMemo, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ShoppingCart, User, Search, Globe, ChevronDown, Menu, X } from 'lucide-react'
 import { Modal, Sheet, Button, Input, Badge } from './atoms.jsx'
-import { PRODUCTS } from '../utils/products.js'
+import { supabase } from '../supabase' // Import Supabase
 
 const NAV = [
   { key: 'men', label: 'Men', to: '/men' },
+  { key: 'women', label: 'Women', to: '/women' }, // Added Women for completeness
   { key: 'new', label: 'New Arrivals', to: '/new-arrivals' },
   { key: 'sale', label: 'Sales', to: '/sale' },
 ]
 
-export default function Header({ cartCount, onOpenCart }) {
+// --- UPDATED: Header now receives the 'session' prop from App.jsx ---
+export default function Header({ session, cartCount, onOpenCart }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
-  const location = useLocation()
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/'); // Navigate to home after logout
+  };
 
   return (
     <header className='sticky top-0 z-40 w-full bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-black/5'>
@@ -35,22 +43,38 @@ export default function Header({ cartCount, onOpenCart }) {
               </Link>
             ))}
             <button className='flex items-center gap-1 text-sm' onClick={() => setSearchOpen(true)}><Search size={18}/> Search</button>
-            <div className='hidden items-center gap-1 text-sm md:flex'><Globe size={18}/><span>EN</span><ChevronDown size={16}/></div>
           </nav>
 
           <div className='flex items-center gap-2'>
             <button className='hidden sm:inline-flex' onClick={() => setSearchOpen(true)} aria-label='Search'><Search /></button>
-            <button aria-label='Account' className='hidden sm:inline-flex'><User /></button>
+            
+            {/* --- NEW: DYNAMIC AUTH BUTTONS --- */}
+            {session ? (
+              // If user is logged in, show their email and a logout button
+              <div className='hidden sm:flex items-center gap-2'>
+                <span className='text-sm'>{session.user.email}</span>
+                <Button variant='outline' size='sm' onClick={handleLogout}>Logout</Button>
+              </div>
+            ) : (
+              // If user is logged out, show Login and Sign Up buttons
+              <div className='hidden sm:flex items-center gap-2'>
+                <Button variant='ghost' size='sm' asChild><Link to="/login">Login</Link></Button>
+                <Button size='sm' asChild><Link to="/signup">Sign Up</Link></Button>
+              </div>
+            )}
+
             <Button variant='outline' className='gap-2' onClick={onOpenCart} aria-label='Cart'>
               <ShoppingCart size={18}/>
-              <span className='text-sm'>Cart</span>
+              <span className='text-sm hidden md:inline'>Cart</span>
               {cartCount > 0 && <Badge>{cartCount}</Badge>}
             </Button>
           </div>
         </div>
       </div>
 
+      {/* --- Mobile Menu --- */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen} side='left'>
+        {/* ... (Mobile menu content is largely the same but we add auth links) ... */}
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-2'>
             <div className='grid h-8 w-8 place-content-center rounded-xl bg-black text-white font-black'>S</div>
@@ -60,25 +84,62 @@ export default function Header({ cartCount, onOpenCart }) {
         </div>
         <div className='mt-6 space-y-1'>
           {NAV.map((c) => (
-            // Close the mobile menu when a link is clicked
             <Link key={c.key} to={c.to} onClick={() => setMobileOpen(false)} className='block rounded-2xl px-3 py-3 text-base hover:bg-black/5'>{c.label}</Link>
           ))}
-          <div className='pt-3'>
-            <Button className='w-full' variant='outline' onClick={() => { setSearchOpen(true); setMobileOpen(false); }}>Search</Button>
+          <div className='pt-3 border-t mt-3'>
+            {session ? (
+              <Button className='w-full' variant='outline' onClick={() => { handleLogout(); setMobileOpen(false); }}>Logout</Button>
+            ) : (
+              <div className='space-y-2'>
+                <Button className='w-full' asChild><Link to="/login" onClick={() => setMobileOpen(false)}>Login</Link></Button>
+                <Button className='w-full' variant='outline' asChild><Link to="/signup" onClick={() => setMobileOpen(false)}>Sign Up</Link></Button>
+              </div>
+            )}
           </div>
         </div>
       </Sheet>
-
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   )
 }
 
+// --- UPDATED: SearchModal now fetches from Supabase ---
 function SearchModal({ open, onClose }) {
-  const [q, setQ] = React.useState('')
-  const results = useMemo(() => PRODUCTS.filter(p => p.name.toLowerCase().includes(q.toLowerCase())), [q])
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState([])
   const navigate = useNavigate()
+
+  useEffect(() => {
+    // A function to delay searching until the user stops typing
+    const timer = setTimeout(() => {
+      if (q.length > 2) { // Only search if query is longer than 2 characters
+        const performSearch = async () => {
+          const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .textSearch('name', q, { type: 'plain' }) // Using textSearch for better results
+          
+          if (error) {
+            console.error("Search error:", error);
+          } else {
+            setResults(data);
+          }
+        }
+        performSearch();
+      } else {
+        setResults([]);
+      }
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer); // Cleanup timer on unmount
+  }, [q]);
+
+  const handleNavigate = (productId) => {
+    onClose();
+    navigate(`/product/${productId}`);
+  }
+
   return (
     <Modal open={open} onClose={onClose}>
       <div className='flex items-center gap-3'>
@@ -86,16 +147,16 @@ function SearchModal({ open, onClose }) {
         <Input autoFocus placeholder='Search products…' value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <div className='mt-4 max-h-80 overflow-y-auto divide-y divide-black/5'>
-        {q && results.map(p => (
-          <button key={p.id} className='flex w-full items-center gap-4 px-2 py-3 text-left hover:bg-black/5' onClick={() => { onClose(); navigate(`/product/${p.id}`); }}>
-            <img src={p.img} alt={p.name} className='h-16 w-16 rounded-xl object-cover'/>
+        {results.map(p => (
+          <button key={p.id} className='flex w-full items-center gap-4 px-2 py-3 text-left hover:bg-black/5' onClick={() => handleNavigate(p.id)}>
+            <img src={p.image_url} alt={p.name} className='h-16 w-16 rounded-xl object-cover'/>
             <div>
               <div className='font-medium'>{p.name}</div>
               <div className='text-sm text-black/60'>${p.price}</div>
             </div>
           </button>
         ))}
-        {q && results.length === 0 && <div className='p-4 text-sm text-black/60'>No results for “{q}”.</div>}
+        {q.length > 2 && results.length === 0 && <div className='p-4 text-sm text-black/60'>No results for “{q}”.</div>}
       </div>
     </Modal>
   )
