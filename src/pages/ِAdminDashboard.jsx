@@ -72,7 +72,8 @@ export default function AdminDashboard() {
           
           <div>
             <label className="block text-sm font-medium text-gray-700">Stock</label>
-            <input type="number" value={stock} onChange={e => setStock(e.targe.value)} className="w-full p-2 border rounded mt-1" required />
+            {/* --- THIS IS THE CORRECTED LINE --- */}
+            <input type="number" value={stock} onChange={e => setStock(e.target.value)} className="w-full p-2 border rounded mt-1" required />
           </div>
 
           <div className="md:col-span-2">
