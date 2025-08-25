@@ -10,6 +10,7 @@
     "start": "vite"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.3",
     "@supabase/supabase-js": "^2.55.0",
     "@vitejs/plugin-react": "^5.0.0",
     "firebase": "^12.1.0",
