@@ -1,7 +1,9 @@
 // src/pages/SignUp.jsx
+
 import React, { useState } from 'react';
 import { supabase } from '../supabase'; // Make sure path is correct
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast'; // --- MODIFICATION 1: Import the toast library ---
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -18,8 +20,11 @@ export default function SignUp() {
     });
     if (error) {
       setError(error.message);
+      // Also show an error toast for user feedback
+      toast.error(error.message); 
     } else {
-      alert('Sign up successful! Please check your email to confirm.');
+      // --- MODIFICATION 2: Replaced alert() with a toast notification ---
+      toast.success('Sign up successful! Please check your email to confirm.');
       navigate('/'); // Go to homepage after sign up
     }
   };
@@ -47,7 +52,8 @@ export default function SignUp() {
         <button type="submit" className="w-full bg-black text-white p-3 rounded">
           Sign Up
         </button>
-        {error && <p className="text-red-500">{error}</p>}
+        {/* The error message below the form is still good to have, we can keep it */}
+        {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       </form>
     </div>
   );

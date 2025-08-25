@@ -1,3 +1,4 @@
+// src/components/Header.jsx
 
 import React, { useState, useMemo, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
@@ -12,21 +13,19 @@ const NAV = [
   { key: 'sale', label: 'Sales', to: '/sale' },
 ]
 
-// --- UPDATED: Header now receives the 'session' prop from App.jsx ---
 export default function Header({ session, cartCount, onOpenCart }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  // navigate is no longer needed here since logout is moved, but we can keep it for now.
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/'); // Navigate to home after logout
-  };
+  // --- MODIFICATION: The handleLogout function has been removed from the header. ---
 
   return (
     <header className='sticky top-0 z-40 w-full bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-black/5'>
       <div className='container'>
-        <div className='flex h-16 items-center justify-between gap-4'>
+        {/* --- MODIFICATION: Header is now bigger (h-20) --- */}
+        <div className='flex h-20 items-center justify-between gap-4'>
           <div className='flex items-center gap-2'>
             <button className='sm:hidden' onClick={() => setMobileOpen(true)} aria-label='Open navigation'><Menu /></button>
             <Link to='/' className='group -ml-1 flex items-center gap-2 rounded-3xl px-2 py-1'>
@@ -48,15 +47,15 @@ export default function Header({ session, cartCount, onOpenCart }) {
           <div className='flex items-center gap-2'>
             <button className='hidden sm:inline-flex' onClick={() => setSearchOpen(true)} aria-label='Search'><Search /></button>
             
-            {/* --- NEW: DYNAMIC AUTH BUTTONS --- */}
+            {/* --- MODIFICATION: The entire login/logout section is changed. --- */}
             {session ? (
-              // If user is logged in, show their email and a logout button
-              <div className='hidden sm:flex items-center gap-2'>
-                <span className='text-sm'>{session.user.email}</span>
-                <Button variant='outline' size='sm' onClick={handleLogout}>Logout</Button>
-              </div>
+              // If user is logged in, show their email as a link to the new account page
+              <Link to="/account" className='hidden sm:flex items-center gap-2 text-sm font-medium hover:underline'>
+                <User size={18} />
+                {session.user.email}
+              </Link>
             ) : (
-              // If user is logged out, show Login and Sign Up buttons
+              // If user is logged out, show Login and Sign Up buttons (this part is the same)
               <div className='hidden sm:flex items-center gap-2'>
                 <Button variant='ghost' size='sm' asChild><Link to="/login">Login</Link></Button>
                 <Button size='sm' asChild><Link to="/signup">Sign Up</Link></Button>
@@ -74,7 +73,6 @@ export default function Header({ session, cartCount, onOpenCart }) {
 
       {/* --- Mobile Menu --- */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen} side='left'>
-        {/* ... (Mobile menu content is largely the same but we add auth links) ... */}
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-2'>
             <div className='grid h-8 w-8 place-content-center rounded-xl bg-black text-white font-black'>S</div>
@@ -87,8 +85,11 @@ export default function Header({ session, cartCount, onOpenCart }) {
             <Link key={c.key} to={c.to} onClick={() => setMobileOpen(false)} className='block rounded-2xl px-3 py-3 text-base hover:bg-black/5'>{c.label}</Link>
           ))}
           <div className='pt-3 border-t mt-3'>
+            {/* --- MODIFICATION: Mobile menu now links to Account page when logged in. --- */}
             {session ? (
-              <Button className='w-full' variant='outline' onClick={() => { handleLogout(); setMobileOpen(false); }}>Logout</Button>
+               <Link to="/account" onClick={() => setMobileOpen(false)} className='flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50'>
+                My Account
+              </Link>
             ) : (
               <div className='space-y-2'>
                 <Button className='w-full' asChild><Link to="/login" onClick={() => setMobileOpen(false)}>Login</Link></Button>
@@ -104,21 +105,20 @@ export default function Header({ session, cartCount, onOpenCart }) {
   )
 }
 
-// --- UPDATED: SearchModal now fetches from Supabase ---
+// The SearchModal function remains unchanged as it is already correct.
 function SearchModal({ open, onClose }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
   const navigate = useNavigate()
 
   useEffect(() => {
-    // A function to delay searching until the user stops typing
     const timer = setTimeout(() => {
-      if (q.length > 2) { // Only search if query is longer than 2 characters
+      if (q.length > 2) {
         const performSearch = async () => {
           const { data, error } = await supabase
             .from('products')
             .select('*')
-            .textSearch('name', q, { type: 'plain' }) // Using textSearch for better results
+            .textSearch('name', q, { type: 'plain' })
           
           if (error) {
             console.error("Search error:", error);
@@ -130,9 +130,9 @@ function SearchModal({ open, onClose }) {
       } else {
         setResults([]);
       }
-    }, 300); // 300ms delay
+    }, 300);
 
-    return () => clearTimeout(timer); // Cleanup timer on unmount
+    return () => clearTimeout(timer);
   }, [q]);
 
   const handleNavigate = (productId) => {
