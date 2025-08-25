@@ -5,16 +5,16 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Header from './components/Header.jsx'
 import Footer from './components/Footer.jsx'
 import Home from './pages/Home.jsx'
-import Category from './pages/Category.jsx';
-import ProductPage from './pages/ProductPage.jsx';
-import SignUp from './pages/SignUp.jsx';
-import Login from './pages/Login.jsx';
-import AccountPage from './pages/AccountPage.jsx';
-import CartDrawer from './components/CartDrawer.jsx';
-// --- MODIFICATION: Corrected the import paths ---
-import AdminDashboard from './pages/AdminDashboard.jsx';
-import AdminRoute from './components/AdminRoute.jsx';
-// --- END MODIFICATION ---
+import Category from './pages/Category.jsx'
+import ProductPage from './pages/ProductPage.jsx'
+import SignUp from './pages/SignUp.jsx'
+import Login from './pages/Login.jsx'
+import AccountPage from './pages/AccountPage.jsx'
+import CartDrawer from './components/CartDrawer.jsx'
+// --- FINAL FIX: Corrected the import paths for Admin components ---
+import AdminDashboard from './pages/AdminDashboard.jsx'
+import AdminRoute from './components/AdminRoute.jsx'
+// --- END FIX ---
 import { supabase } from './supabase' 
 import { Toaster, toast } from 'react-hot-toast'
 
@@ -117,7 +117,7 @@ export default function App() {
         <Route path='/login' element={<Login />} />
         <Route path='/account' element={<AccountPage />} />
         
-        {/* --- NEW: Add the protected admin route --- */}
+        {/* Admin Route */}
         <Route path='/admin' element={
           <AdminRoute>
             <AdminDashboard />
