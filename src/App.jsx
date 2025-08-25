@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-// --- FINAL FIX: Using the new '@' path shortcut for all imports ---
 import Header from '@/components/Header.jsx'
 import Footer from '@/components/Footer.jsx'
 import Home from '@/pages/Home.jsx'
@@ -12,11 +11,11 @@ import SignUp from '@/pages/SignUp.jsx'
 import Login from '@/pages/Login.jsx'
 import AccountPage from '@/pages/AccountPage.jsx'
 import CartDrawer from '@/components/CartDrawer.jsx'
-import AdminDashboard from '@/pages/AdminDashboard.jsx'
-import AdminRoute from '@/components/AdminRoute.jsx'
+// --- MODIFICATION: Temporarily commenting out the admin imports to prevent server crash ---
+// import AdminDashboard from '@/pages/AdminDashboard.jsx'
+// import AdminRoute from '@/components/AdminRoute.jsx'
 import { supabase } from '@/supabase' 
 import { Toaster, toast } from 'react-hot-toast'
-// --- END FIX ---
 
 export default function App() {
   const [cartOpen, setCartOpen] = useState(false)
@@ -48,7 +47,7 @@ export default function App() {
             : item
         );
       } else {
-        return [...prevItems, { ...product, size, qty }];
+        return [...prevItems, { ...item, size, qty }];
       }
     });
     setCartOpen(true);
@@ -117,12 +116,12 @@ export default function App() {
         <Route path='/login' element={<Login />} />
         <Route path='/account' element={<AccountPage />} />
         
-        {/* Admin Route */}
-        <Route path='/admin' element={
+        {/* --- MODIFICATION: Temporarily commenting out the admin route to prevent server crash --- */}
+        {/* <Route path='/admin' element={
           <AdminRoute>
             <AdminDashboard />
           </AdminRoute>
-        } />
+        } /> */}
         
         <Route path='*' element={<Navigate to='/' replace />} />
       </Routes>
