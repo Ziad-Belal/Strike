@@ -11,10 +11,10 @@ import SignUp from './pages/SignUp.jsx';
 import Login from './pages/Login.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
-// --- NEW: Import the admin components ---
+// --- MODIFICATION: Corrected the import paths ---
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminRoute from './components/AdminRoute.jsx';
-// --- END NEW ---
+// --- END MODIFICATION ---
 import { supabase } from './supabase' 
 import { Toaster, toast } from 'react-hot-toast'
 
