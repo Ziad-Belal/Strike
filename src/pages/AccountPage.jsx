@@ -1,76 +1,67 @@
 // src/pages/AccountPage.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // We need useState and useEffect
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 
 export default function AccountPage() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
   
-  // This function runs when the page loads to get the user's profile data
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching profile:', error);
-        } else {
-          setProfile(data);
-        }
-      }
-      setLoading(false);
-    };
-    fetchProfile();
-  }, []);
+  // --- NEW: Add state to manage the user and loading status ---
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Function to handle logging the user out
+  // --- NEW: This useEffect safely fetches the user's session when the page loads ---
+  useEffect(() => {
+    const fetchUser = async () => {
+      // Use the modern, asynchronous way to get the user
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setLoading(false); // Stop loading once we have the user info (or lack thereof)
+    };
+
+    fetchUser();
+  }, []); // The empty array [] means this runs once when the page loads
+
+  // The function to handle logging out (this is unchanged)
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/'); // Go to homepage after logout
+    navigate('/'); // Go back to the homepage after logging out
   };
 
+  // --- NEW: Show a loading message while we're fetching the user ---
   if (loading) {
-    return <div className="container py-10 text-center">Loading...</div>;
+    return <div className="container py-10 text-center">Loading your account...</div>;
   }
 
-  if (!profile) {
-    return <div className="container py-10 text-center">Please log in to view your account.</div>;
+  // If, after loading, there is no user, then show the "not logged in" message
+  if (!user) {
+    return (
+      <div className="container py-10 text-center">
+        <p>You are not logged in.</p>
+        <button onClick={() => navigate('/login')} className="mt-4 bg-black text-white px-4 py-2 rounded-lg">
+          Go to Login
+        </button>
+      </div>
+    );
   }
-
+  
+  // If loading is finished AND we have a user, show the account page
   return (
-    <div className="container max-w-2xl mx-auto py-10">
+    <div className="container max-w-md mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">My Account</h1>
       
-      <div className="space-y-4 p-6 border rounded-lg">
-        <h2 className="text-xl font-semibold">Account Details</h2>
+      <div className="p-6 border rounded-lg space-y-4">
         <div>
-          <label className="text-sm font-medium text-gray-600">Email</label>
-          <p className="text-lg">{supabase.auth.user()?.email}</p>
+          <label className="text-sm font-medium text-gray-600">Logged in as:</label>
+          <p className="text-lg font-semibold">{user.email}</p>
         </div>
-        <div>
-          <label className="text-sm font-medium text-gray-600">Full Name</label>
-          <input 
-            type="text" 
-            defaultValue={profile.full_name || ''} 
-            className="w-full p-2 border rounded mt-1"
-          />
-        </div>
-        {/* You can add more profile fields here like address, city, etc. */}
-      </div>
-
-      <div className="mt-8 flex justify-between items-center">
-        <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-          Save Changes
-        </button>
-        <button onClick={handleLogout} className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600">
+        
+        {/* The big logout button */}
+        <button 
+          onClick={handleLogout} 
+          className="w-full bg-red-500 text-white px-6 py-3 rounded-lg text-lg font-bold hover:bg-red-600"
+        >
           Logout
         </button>
       </div>

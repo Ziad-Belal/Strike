@@ -1,14 +1,14 @@
 // src/components/Header.jsx
 
-import React, { useState, useMemo, useEffect } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { ShoppingCart, User, Search, Globe, ChevronDown, Menu, X } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ShoppingCart, User, Search, Menu, X } from 'lucide-react'
 import { Modal, Sheet, Button, Input, Badge } from './atoms.jsx'
-import { supabase } from '../supabase' // Import Supabase
+import { supabase } from '../supabase'
 
 const NAV = [
   { key: 'men', label: 'Men', to: '/men' },
-  { key: 'women', label: 'Women', to: '/women' }, // Added Women for completeness
+  { key: 'women', label: 'Women', to: '/women' },
   { key: 'new', label: 'New Arrivals', to: '/new-arrivals' },
   { key: 'sale', label: 'Sales', to: '/sale' },
 ]
@@ -16,16 +16,13 @@ const NAV = [
 export default function Header({ session, cartCount, onOpenCart }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
-  // navigate is no longer needed here since logout is moved, but we can keep it for now.
-  const navigate = useNavigate();
 
-  // --- MODIFICATION: The handleLogout function has been removed from the header. ---
-
+  // The logout function is no longer needed in the header
+  
   return (
     <header className='sticky top-0 z-40 w-full bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-black/5'>
       <div className='container'>
-        {/* --- MODIFICATION: Header is now bigger (h-20) --- */}
-        <div className='flex h-20 items-center justify-between gap-4'>
+        <div className='flex h-16 items-center justify-between gap-4'>
           <div className='flex items-center gap-2'>
             <button className='sm:hidden' onClick={() => setMobileOpen(true)} aria-label='Open navigation'><Menu /></button>
             <Link to='/' className='group -ml-1 flex items-center gap-2 rounded-3xl px-2 py-1'>
@@ -47,15 +44,15 @@ export default function Header({ session, cartCount, onOpenCart }) {
           <div className='flex items-center gap-2'>
             <button className='hidden sm:inline-flex' onClick={() => setSearchOpen(true)} aria-label='Search'><Search /></button>
             
-            {/* --- MODIFICATION: The entire login/logout section is changed. --- */}
+            {/* --- THIS IS THE FINAL CORRECTED LOGIC --- */}
             {session ? (
-              // If user is logged in, show their email as a link to the new account page
+              // If logged in, the email is a LINK to the account page.
               <Link to="/account" className='hidden sm:flex items-center gap-2 text-sm font-medium hover:underline'>
                 <User size={18} />
                 {session.user.email}
               </Link>
             ) : (
-              // If user is logged out, show Login and Sign Up buttons (this part is the same)
+              // If logged out, show the Login and Sign Up buttons.
               <div className='hidden sm:flex items-center gap-2'>
                 <Button variant='ghost' size='sm' asChild><Link to="/login">Login</Link></Button>
                 <Button size='sm' asChild><Link to="/signup">Sign Up</Link></Button>
@@ -85,9 +82,8 @@ export default function Header({ session, cartCount, onOpenCart }) {
             <Link key={c.key} to={c.to} onClick={() => setMobileOpen(false)} className='block rounded-2xl px-3 py-3 text-base hover:bg-black/5'>{c.label}</Link>
           ))}
           <div className='pt-3 border-t mt-3'>
-            {/* --- MODIFICATION: Mobile menu now links to Account page when logged in. --- */}
             {session ? (
-               <Link to="/account" onClick={() => setMobileOpen(false)} className='flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50'>
+              <Link to="/account" onClick={() => setMobileOpen(false)} className='flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50'>
                 My Account
               </Link>
             ) : (
@@ -105,7 +101,7 @@ export default function Header({ session, cartCount, onOpenCart }) {
   )
 }
 
-// The SearchModal function remains unchanged as it is already correct.
+// ... SearchModal code remains the same ...
 function SearchModal({ open, onClose }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
