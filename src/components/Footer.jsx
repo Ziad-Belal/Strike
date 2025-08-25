@@ -25,7 +25,6 @@ export default function Footer() {
             <Input placeholder='Your email'/>
             <Button>Sign up</Button>
           </div>
-          <div className='mt-4 text-xs text-black/60'>By signing up, you agree to our Terms & Privacy Policy.</div>
         </div>
       </div>
       <div className='border-t border-black/10 py-4 text-center text-xs text-black/60'>© {new Date().getFullYear()} Strike. Demo front-end only.</div>
