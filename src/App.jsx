@@ -5,14 +5,16 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Header from './components/Header.jsx'
 import Footer from './components/Footer.jsx'
 import Home from './pages/Home.jsx'
-// --- MODIFICATION: ADDED MISSING IMPORTS ---
 import Category from './pages/Category.jsx';
 import ProductPage from './pages/ProductPage.jsx';
 import SignUp from './pages/SignUp.jsx';
 import Login from './pages/Login.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
-// --- END MODIFICATION ---
+// --- NEW: Import the admin components ---
+import AdminDashboard from './pages/AdminDashboard.jsx';
+import AdminRoute from './components/AdminRoute.jsx';
+// --- END NEW ---
 import { supabase } from './supabase' 
 import { Toaster, toast } from 'react-hot-toast'
 
@@ -102,15 +104,26 @@ export default function App() {
       <Header session={session} cartCount={cartItems.length} onOpenCart={() => setCartOpen(true)} />
       
       <Routes>
+        {/* Public Routes */}
         <Route path='/' element={<Home />} />
         <Route path='/men' element={<Category category='men' />} />
         <Route path='/women' element={<Category category='women' />} />
         <Route path='/new-arrivals' element={<Category category='new' />} />
         <Route path='/sale' element={<Category category='sale' />} />
         <Route path='/product/:id' element={<ProductPage addToCart={addToCart} />} />
+        
+        {/* Auth Routes */}
         <Route path='/signup' element={<SignUp />} />
         <Route path='/login' element={<Login />} />
         <Route path='/account' element={<AccountPage />} />
+        
+        {/* --- NEW: Add the protected admin route --- */}
+        <Route path='/admin' element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        } />
+        
         <Route path='*' element={<Navigate to='/' replace />} />
       </Routes>
       
