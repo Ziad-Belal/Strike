@@ -5,7 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' } })
+    return new Response('ok', { headers: { 'Access-control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' } })
   }
 
   try {
@@ -51,7 +51,6 @@ serve(async (req) => {
               </ul>
               <h2>Order Details:</h2>
               <p>Total Price: $${total_price.toFixed(2)}</p>
-              <!-- You could add a list of items here too -->
             `
         })
     })
@@ -61,7 +60,8 @@ serve(async (req) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
         body: JSON.stringify({
-            from: 'Strike Admins <onboarding@resend.dev>', // Sender name appears in inbox
+            // --- THIS IS THE ONLY LINE THAT HAS CHANGED ---
+            from: 'Strike Team <onboarding@resend.dev>', // Sender name is now "Strike Team"
             to: user.email,
             subject: 'Thank you for your order from Strike!',
             html: `

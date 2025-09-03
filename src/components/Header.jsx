@@ -1,124 +1,112 @@
 // src/components/Header.jsx
 
-import React, { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingCart, User, Search, Menu, X } from 'lucide-react'
-import { Modal, Sheet, Button, Input, Badge } from './atoms.jsx'
-import { supabase } from '../supabase'
+import React, { useState, useEffect } from 'react'; // We need useState and useEffect for the modal
+import { Link, useNavigate } from 'react-router-dom';
+import { ShoppingCart, User, Search } from 'lucide-react'; // Added Search back
+import { Modal, Input, Button, Badge } from './atoms.jsx'; // Added Modal and Input back
+import { supabase } from '../supabase'; // We need supabase for the search
 
 const NAV = [
   { key: 'men', label: 'Men', to: '/men' },
   { key: 'women', label: 'Women', to: '/women' },
   { key: 'new', label: 'New Arrivals', to: '/new-arrivals' },
   { key: 'sale', label: 'Sales', to: '/sale' },
-]
+];
 
 export default function Header({ session, cartCount, onOpenCart }) {
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-  
-  // --- NEW: Add state to hold the user's profile (which contains their role) ---
-  const [profile, setProfile] = useState(null);
-
-  // --- NEW: Fetch the user's profile when they log in ---
-  useEffect(() => {
-    if (session?.user) {
-      const fetchProfile = async () => {
-        const { data } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        setProfile(data);
-      };
-      fetchProfile();
-    } else {
-      setProfile(null); // Clear the profile when the user logs out
-    }
-  }, [session]); // This effect runs whenever the session changes
+  // --- THIS IS THE RESTORED SEARCH STATE ---
+  const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <header className='sticky top-0 z-40 w-full bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-black/5'>
+    <header className='sticky top-0 z-40 w-full bg-white/80 backdrop-blur border-b'>
       <div className='container'>
-        <div className='flex h-16 items-center justify-between gap-4'>
-          <div className='flex items-center gap-2'>
-            <button className='sm:hidden' onClick={() => setMobileOpen(true)} aria-label='Open navigation'><Menu /></button>
-            <Link to='/' className='group -ml-1 flex items-center gap-2 rounded-3xl px-2 py-1'>
-              <div className='grid h-8 w-8 place-content-center rounded-xl bg-black text-white font-black'>S</div>
-              <span className='hidden text-lg font-semibold tracking-wide sm:block'>Strike</span>
-            </Link>
-          </div>
-
+        <div className='flex h-16 items-center justify-between'>
+          <Link to='/' className='flex items-center gap-2'>
+            <div className='grid h-8 w-8 place-content-center rounded-xl bg-black text-white font-black'>S</div>
+            <span className='hidden sm:block font-semibold'>Strike</span>
+          </Link>
           <nav className='hidden items-center gap-6 sm:flex'>
-            {NAV.map((c) => (
-              <Link key={c.key} to={c.to} className='group relative py-2 text-sm font-medium'>
-                {c.label}
-                <span className='absolute -bottom-1 left-0 h-0.5 w-0 bg-black transition-all group-hover:w-full' />
-              </Link>
-            ))}
-
-            {/* --- NEW: Conditionally render the Admin link --- */}
-            {profile?.role === 'admin' && (
-              <Link to="/admin" className='group relative py-2 text-sm font-medium text-red-600 hover:text-red-700'>
-                Admin
-                <span className='absolute -bottom-1 left-0 h-0.5 w-0 bg-red-600 transition-all group-hover:w-full' />
-              </Link>
-            )}
-
-            <button className='flex items-center gap-1 text-sm' onClick={() => setSearchOpen(true)}><Search size={18}/> Search</button>
+            {NAV.map((c) => (<Link key={c.key} to={c.to} className='text-sm font-medium'>{c.label}</Link>))}
+            {/* --- THIS IS THE RESTORED SEARCH BUTTON --- */}
+            <button className='flex items-center gap-1 text-sm text-gray-500 hover:text-black' onClick={() => setSearchOpen(true)}>
+              <Search size={18}/> Search
+            </button>
           </nav>
-
           <div className='flex items-center gap-2'>
-            <button className='hidden sm:inline-flex' onClick={() => setSearchOpen(true)} aria-label='Search'><Search /></button>
-            
             {session ? (
               <Link to="/account" className='hidden sm:flex items-center gap-2 text-sm font-medium hover:underline'>
                 <User size={18} />
                 {session.user.email}
               </Link>
             ) : (
-              <div className='hidden sm:flex items-center gap-2'>
-                <Button variant='ghost' size='sm' asChild><Link to="/login">Login</Link></Button>
-                <Button size='sm' asChild><Link to="/signup">Sign Up</Link></Button>
+              <div className="flex items-center gap-2">
+                 <Button variant='ghost' size='sm' asChild><Link to="/login">Login</Link></Button>
+                 <Button size='sm' asChild><Link to="/signup">Sign Up</Link></Button>
               </div>
             )}
-
-            <Button variant='outline' className='gap-2' onClick={onOpenCart} aria-label='Cart'>
+            <Button variant='outline' className='gap-2' onClick={onOpenCart}>
               <ShoppingCart size={18}/>
-              <span className='text-sm hidden md:inline'>Cart</span>
+              <span className='hidden md:inline'>Cart</span>
               {cartCount > 0 && <Badge>{cartCount}</Badge>}
             </Button>
           </div>
         </div>
       </div>
-
-      {/* --- Mobile Menu --- */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen} side='left'>
-        {/* ... (Mobile menu content is unchanged) ... */}
-      </Sheet>
-
+      {/* --- THIS IS THE RESTORED SEARCH MODAL --- */}
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
-  )
+  );
 }
 
-// ... SearchModal code remains the same ...
+// --- THIS IS THE RESTORED SEARCHMODAL FUNCTION ---
 function SearchModal({ open, onClose }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
   const navigate = useNavigate()
 
   useEffect(() => {
-    // ...
+    const timer = setTimeout(() => {
+      if (q.length > 2) {
+        const performSearch = async () => {
+          const { data, error } = await supabase.from('products').select('*').textSearch('name', q, { type: 'plain' })
+          if (error) {
+            console.error("Search error:", error);
+          } else {
+            setResults(data);
+          }
+        }
+        performSearch();
+      } else {
+        setResults([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [q]);
 
   const handleNavigate = (productId) => {
-    // ...
+    onClose();
+    navigate(`/product/${productId}`);
   }
 
   return (
     <Modal open={open} onClose={onClose}>
-      {/* ... */}
+      <div className='flex items-center gap-3'>
+        <Search/>
+        <Input autoFocus placeholder='Search products…' value={q} onChange={(e) => setQ(e.g.value)} />
+      </div>
+      <div className='mt-4 max-h-80 overflow-y-auto divide-y'>
+        {results.map(p => (
+          <button key={p.id} className='flex w-full items-center gap-4 py-3 text-left hover:bg-gray-100' onClick={() => handleNavigate(p.id)}>
+            <img src={p.image_url || 'https://placehold.co/100x100'} alt={p.name} className='h-16 w-16 rounded-lg object-cover'/>
+            <div>
+              <div className='font-medium'>{p.name}</div>
+              <div className='text-sm text-gray-600'>${Number(p.price).toFixed(2)}</div>
+            </div>
+          </button>
+        ))}
+        {q.length > 2 && results.length === 0 && <div className='p-4 text-sm text-gray-600'>No results for “{q}”.</div>}
+      </div>
     </Modal>
   )
 }

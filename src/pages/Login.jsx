@@ -1,27 +1,53 @@
 // src/pages/Login.jsx
+
 import React, { useState } from 'react';
-import { supabase } from '../supabase'; // Make sure path is correct
-import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabase';
+import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'react-hot-toast'; // We'll use toasts for better user feedback
 
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError(null);
+    setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
     if (error) {
-      setError(error.message);
+      toast.error(error.message);
     } else {
-      navigate('/'); // Go to homepage after login
+      toast.success("Logged in successfully!");
+      navigate('/');
     }
+    setLoading(false);
   };
+
+  // --- THIS IS THE NEW, CORRECTED PASSWORD RESET FUNCTION ---
+  const handlePasswordReset = async () => {
+    if (!email) {
+      toast.error("Please enter your email address first.");
+      return;
+    }
+    
+    setLoading(true);
+    // This is the modern, correct method for password resets
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`, // Redirects user to homepage after they reset
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Password reset link has been sent to your email!");
+    }
+    setLoading(false);
+  };
+  // --- END OF NEW FUNCTION ---
 
   return (
     <div className="container py-10 max-w-sm mx-auto">
@@ -32,7 +58,7 @@ export default function Login() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full p-3 border rounded-lg"
           required
         />
         <input
@@ -40,14 +66,25 @@ export default function Login() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full p-3 border rounded-lg"
           required
         />
-        <button type="submit" className="w-full bg-black text-white p-3 rounded">
-          Log In
+        <button type="submit" disabled={loading} className="w-full bg-black text-white p-3 rounded-lg font-bold disabled:bg-gray-400">
+          {loading ? 'Logging In...' : 'Log In'}
         </button>
-        {error && <p className="text-red-500">{error}</p>}
       </form>
+      
+      {/* --- THIS IS THE NEW "FORGOT PASSWORD?" BUTTON --- */}
+      <div className="text-center mt-4">
+        <button onClick={handlePasswordReset} disabled={loading} className="text-sm text-gray-600 hover:underline disabled:opacity-50">
+          Forgot your password?
+        </button>
+      </div>
+
+      {/* A helpful link to the sign-up page */}
+      <div className="text-center mt-6">
+        <p>Don't have an account? <Link to="/signup" className="font-bold hover:underline">Sign Up</Link></p>
+      </div>
     </div>
   );
 }

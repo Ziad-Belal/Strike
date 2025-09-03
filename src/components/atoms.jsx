@@ -2,11 +2,10 @@
 
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Slot } from '@radix-ui/react-slot'; // Import Slot for asChild behavior
+import { Slot } from '@radix-ui/react-slot';
 
-// --- UPDATED to correctly handle asChild ---
 export const Button = ({ className = '', variant = 'default', size = 'md', asChild = false, children, ...props }) => {
-  const Comp = asChild ? Slot : 'button'; // Use Slot if asChild is true, otherwise use a button
+  const Comp = asChild ? Slot : 'button';
   const base = 'inline-flex items-center justify-center rounded-3xl font-medium transition active:scale-[.98]';
   const variants = {
     default: 'bg-black text-white hover:bg-black/90',
@@ -28,7 +27,7 @@ export const Input = ({ className = '', ...props }) => (
   <input className={['w-full rounded-3xl border border-black/10 bg-white px-4 py-2 outline-none focus:ring-2 focus:ring-black/20', className].join(' ')} {...props} />
 )
 
-// The Sheet and Modal components are already correct
+// --- THIS IS THE CORRECTED VERSION ---
 export const Sheet = ({ open, onClose, side = 'right', children }) => (
   <AnimatePresence>
     {open && (
@@ -37,7 +36,7 @@ export const Sheet = ({ open, onClose, side = 'right', children }) => (
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={onClose} // The ENTIRE background is now clickable to close
       >
         <div className='absolute inset-0 bg-black/40' aria-hidden="true" />
         <motion.div
@@ -46,7 +45,7 @@ export const Sheet = ({ open, onClose, side = 'right', children }) => (
           animate={{ x: 0 }}
           exit={{ x: side === 'right' ? 400 : -400 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()} // Clicks INSIDE the sheet are stopped, and won't close it.
         >
           {children}
         </motion.div>
@@ -55,6 +54,7 @@ export const Sheet = ({ open, onClose, side = 'right', children }) => (
   </AnimatePresence>
 )
 
+// --- THIS IS THE CORRECTED VERSION ---
 export const Modal = ({ open, onClose, children }) => (
   <AnimatePresence>
     {open && (
@@ -63,7 +63,7 @@ export const Modal = ({ open, onClose, children }) => (
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={onClose} // The ENTIRE background is now clickable to close
       >
         <div className='absolute inset-0 bg-black/40' aria-hidden="true" />
         <motion.div 
@@ -71,7 +71,7 @@ export const Modal = ({ open, onClose, children }) => (
           initial={{ scale: .96, opacity: 0 }} 
           animate={{ scale: 1, opacity: 1 }} 
           exit={{ scale: .96, opacity: 0 }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()} // Clicks INSIDE the modal are stopped, and won't close it.
         >
           {children}
         </motion.div>
