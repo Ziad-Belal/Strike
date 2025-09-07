@@ -1,10 +1,17 @@
 // src/pages/AdminPage.jsx
-
 import React, { useState } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-hot-toast';
 
-const ADMIN_PASSWORD = "StrikeSports"; // The secret password
+const ADMIN_PASSWORD = "StrikeSports";
+
+// This is a helper function to read the file and convert it to text data (Base64)
+const toBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+});
 
 function AdminDashboard() {
   const [name, setName] = useState('');
@@ -14,29 +21,35 @@ function AdminDashboard() {
   const [category, setCategory] = useState('Men');
   const [sizes, setSizes] = useState('');
   const [imageFile, setImageFile] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
     if (!imageFile) { toast.error("Please select an image."); return; }
-    setIsUploading(true);
+    setIsSubmitting(true);
 
-    const fileName = `${Date.now()}_${imageFile.name}`;
-    const { error: uploadError } = await supabase.storage.from('product_images').upload(fileName, imageFile);
-    if (uploadError) { toast.error("Image upload failed: " + uploadError.message); setIsUploading(false); return; }
+    try {
+      // 1. Convert the image file to a Base64 text string
+      const imageDataString = await toBase64(imageFile);
 
-    const { publicURL } = supabase.storage.from('product_images').getPublicUrl(fileName);
+      // 2. Save everything to the database
+      const available_sizes = sizes.split(',').map(s => s.trim()).filter(Boolean);
+      const { error } = await supabase.from('products').insert([{
+        name, description, price, stock, category, available_sizes,
+        image_data: imageDataString // Save the image data string directly
+      }]);
 
-    const available_sizes = sizes.split(',').map(s => s.trim()).filter(Boolean);
-    const { error: insertError } = await supabase.from('products').insert([{ name, description, price: parseFloat(price), stock: parseInt(stock), category, image_url: publicURL, available_sizes }]);
+      if (error) throw error;
 
-    if (insertError) {
-      toast.error('Error adding product: ' + insertError.message);
-    } else {
       toast.success('Product added successfully!');
+      // Reset form
       setName(''); setDescription(''); setPrice(''); setStock(''); setCategory('Men'); setSizes(''); setImageFile(null);
+      e.target.reset();
+    } catch (error) {
+      toast.error('Error adding product: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsUploading(false);
   };
 
   return (
@@ -58,8 +71,8 @@ function AdminDashboard() {
         <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border rounded bg-white" required>
           <option>Men</option><option>Women</option><option>New Arrivals</option><option>Sale</option>
         </select>
-        <button type="submit" disabled={isUploading} className="w-full bg-black text-white px-8 py-3 rounded-lg text-lg font-bold hover:bg-black/90 disabled:bg-gray-400">
-          {isUploading ? 'Uploading...' : 'Add Product'}
+        <button type="submit" disabled={isSubmitting} className="w-full bg-black text-white px-8 py-3 rounded-lg text-lg font-bold disabled:bg-gray-400">
+          {isSubmitting ? 'Adding Product...' : 'Add Product'}
         </button>
       </form>
     </div>
@@ -73,17 +86,10 @@ export default function AdminPage() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      setError('');
-    } else {
-      setError('Incorrect password.');
-    }
+    if (password === ADMIN_PASSWORD) { setIsAuthenticated(true); } else { setError('Incorrect password.'); }
   };
 
-  if (isAuthenticated) {
-    return <AdminDashboard />;
-  }
+  if (isAuthenticated) return <AdminDashboard />;
 
   return (
     <div className="container max-w-sm mx-auto py-20 text-center">
