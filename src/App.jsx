@@ -8,8 +8,8 @@ import Home from './pages/Home.jsx';
 import Category from './pages/Category.jsx';
 import ProductPage from './pages/ProductPage.jsx';
 import Login from './pages/Login.jsx';
-import SignUp from './pages/SignUp.jsx'; 
-import AccountPage from './pages/AccountPage.jsx'; 
+import SignUp from './pages/SignUp.jsx';
+import AccountPage from './pages/AccountPage.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import { supabase } from './supabase';
@@ -21,6 +21,7 @@ export default function App() {
   const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
+    // This correctly gets the initial session and listens for any changes.
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
@@ -29,16 +30,17 @@ export default function App() {
       setSession(session);
     });
 
+    // This is the cleanup function to prevent memory leaks.
     return () => {
       subscription?.unsubscribe();
     };
   }, []);
 
-  // --- THIS IS THE FULLY RESTORED, WORKING addToCart FUNCTION ---
+  // This is the full, working addToCart function.
   const addToCart = (product, size, qty) => {
-    if (!size && product.available_sizes?.length > 0) { 
-      toast.error('Please select a size first.'); 
-      return; 
+    if (!size && product.available_sizes?.length > 0) {
+      toast.error('Please select a size first.');
+      return;
     }
     setCartItems(prev => {
         const existing = prev.find(i => i.id === product.id && i.size === size);
@@ -51,48 +53,34 @@ export default function App() {
     toast.success(`${product.name} added to cart!`);
   };
 
-  // --- THIS IS THE FULLY RESTORED removeItem FUNCTION ---
+  // This is the full, working removeItem function.
   const removeItem = (productToRemove) => {
     setCartItems(prev => prev.filter(i => !(i.id === productToRemove.id && i.size === productToRemove.size)));
     toast.success(`${productToRemove.name} removed from cart.`);
   };
 
-  // --- THIS IS THE FULLY RESTORED handleCheckout FUNCTION ---
+  // This is the full, working handleCheckout function that calls the backend to send emails.
   const handleCheckout = async () => {
-    if (!session) { 
-      toast.error("Please log in to continue."); 
-      return; 
+    if (!session) {
+      toast.error("Please log in to continue.");
+      return;
     }
-    if (cartItems.length === 0) { 
-      toast.error("Your cart is empty."); 
-      return; 
+    if (cartItems.length === 0) {
+      toast.error("Your cart is empty.");
+      return;
     }
-    
-    // This is the checkout logic that saves the order to the database.
-    const { data: orderData, error: orderError } = await supabase.from('orders').insert({ 
-      user_id: session.user.id, 
-      total_price: cartItems.reduce((acc, item) => acc + item.price * item.qty, 0) 
-    }).select().single();
 
-    if(orderError) { 
-      toast.error("Could not place order."); 
-      return; 
-    }
-    
-    const orderItems = cartItems.map(item => ({ 
-      order_id: orderData.id, 
-      product_id: item.id, 
-      quantity: item.qty, 
-      price: item.price 
-    }));
-    const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-    
-    if(itemsError) {
-        toast.error("Could not save order details.");
+    const { data, error } = await supabase.functions.invoke('create-order-and-notify', {
+      body: { cartItems },
+    });
+
+    if (error) {
+      console.error("Error from Edge Function:", error);
+      toast.error("There was an issue placing your order. Please try again.");
     } else {
-        toast.success("Order placed successfully!");
-        setCartItems([]);
-        setCartOpen(false);
+      toast.success("Order placed successfully! Please check your email.");
+      setCartItems([]);
+      setCartOpen(false);
     }
   };
 
@@ -108,8 +96,8 @@ export default function App() {
         <Route path='/sale' element={<Category category='sale' />} />
         <Route path='/product/:id' element={<ProductPage addToCart={addToCart} />} />
         <Route path='/login' element={<Login />} />
-        <Route path='/signup' element={<SignUp />} /> 
-        <Route path='/account' element={<AccountPage />} /> 
+        <Route path='/signup' element={<SignUp />} />
+        <Route path='/account' element={<AccountPage />} />
         <Route path='/admin' element={<AdminPage />} />
         <Route path='*' element={<Navigate to='/' replace />} />
       </Routes>

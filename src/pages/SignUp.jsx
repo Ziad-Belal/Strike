@@ -17,8 +17,8 @@ export default function SignUp() {
     e.preventDefault();
     setLoading(true);
 
-    // This is how you pass the extra data to Supabase during sign-up
-    const { error } = await supabase.auth.signUp(
+    // Sign up user
+    const { data, error } = await supabase.auth.signUp(
       { email, password },
       {
         data: {
@@ -31,10 +31,28 @@ export default function SignUp() {
 
     if (error) {
       toast.error(error.message);
-    } else {
-      toast.success('Sign up successful! Please check your email to confirm.');
-      navigate('/');
+      setLoading(false);
+      return;
     }
+
+    // Create profile row in 'profiles' table
+    const user = data?.user;
+    if (user) {
+      const { error: profileError } = await supabase.from('profiles').insert([
+        {
+          id: user.id,
+          full_name: fullName,
+          phone_number: phoneNumber,
+          address_line1: address,
+        }
+      ]);
+      if (profileError) {
+        toast.error('Profile creation failed: ' + profileError.message);
+      }
+    }
+
+    toast.success('Sign up successful! Please check your email to confirm.');
+    navigate('/');
     setLoading(false);
   };
 

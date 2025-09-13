@@ -36,9 +36,7 @@ export default function Login() {
     
     setLoading(true);
     // This is the modern, correct method for password resets
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`, // Redirects user to homepage after they reset
-    });
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
 
     if (error) {
       toast.error(error.message);

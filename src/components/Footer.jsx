@@ -1,33 +1,34 @@
 // src/components/Footer.jsx
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Input, Button } from './atoms.jsx';
-import emailjs from '@emailjs/browser';
+import { supabase } from '../supabase'; // We need this
 import { toast } from 'react-hot-toast';
 
 export default function Footer() {
-  const form = useRef();
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleFeedbackSubmit = (e) => {
+  const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
-    // --- THIS IS THE NEW, SIMPLER EMAILJS LOGIC ---
-    emailjs.sendForm(
-      'YOUR_SERVICE_ID', // Go to EmailJS -> Email Services -> find your Gmail service ID
-      'YOUR_TEMPLATE_ID', // Go to EmailJS -> Email Templates -> find your template ID
-      form.current,
-      'YOUR_USER_ID' // Go to EmailJS -> Account -> find your User ID
-    ).then((result) => {
-        toast.success("Thank you! Your message has been sent.");
-        form.current.reset(); // Clear the form
-        setLoading(false);
-    }, (error) => {
-        toast.error("Failed to send message. Please try again.");
-        setLoading(false);
+    
+    // This one line calls our secure backend function.
+    const { error } = await supabase.functions.invoke('send-feedback', {
+      body: { email, message },
     });
+
+    if (error) {
+      toast.error("Failed to send message. Please try again.");
+      console.error("Supabase Function Error:", error);
+    } else {
+      toast.success("Thank you! Your message has been sent.");
+      setEmail('');
+      setMessage('');
+    }
+    setLoading(false);
   };
 
   return (
@@ -45,10 +46,11 @@ export default function Footer() {
         <div className="md:col-span-2">
           <div className='font-semibold'>Leave a Message</div>
           <p className="text-sm text-gray-600 mt-2 mb-4">Have a question or feedback?</p>
-          <form ref={form} onSubmit={handleFeedbackSubmit} className='space-y-3'>
-            <Input type="email" name="from_email" placeholder='Your email' required />
+          <form onSubmit={handleFeedbackSubmit} className='space-y-3'>
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder='Your email' required />
             <textarea
-              name="message_html"
+              value={message}
+              onChange={e => setMessage(e.target.value)}
               placeholder="Your message..."
               className="w-full rounded-3xl border p-2"
               rows="3"
