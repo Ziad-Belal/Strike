@@ -7,7 +7,7 @@ import { Input, Button } from '../components/atoms.jsx';
 import { ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-const currency = (value) => `$${Number(value).toFixed(2)}`;
+const currency = (value) => `EGP ${Number(value).toFixed(2)}`;
 
 export default function ProductPage({ addToCart }) {
   const { id } = useParams();
