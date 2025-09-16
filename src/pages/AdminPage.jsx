@@ -43,7 +43,7 @@ export default function AdminPage() {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .eq('is_deleted', false) // Only show non-deleted products
+      // Removed: .eq('is_deleted', false)
       .order('id', { ascending: false });
     
     if (error) {
@@ -105,11 +105,11 @@ export default function AdminPage() {
         price: parseFloat(price),
         stock: parseInt(stock),
         category,
-        color, // NEW: Include color
-        image_url: imageUrls[0], // Keep first image as main image for backward compatibility
-        image_urls: imageUrls, // Store all images
+        color,
+        image_url: imageUrls[0],
+        image_urls: imageUrls,
         available_sizes,
-        is_deleted: false // NEW: Set as not deleted
+        // Removed: is_deleted: false
       }]);
 
       if (insertError) {
@@ -122,7 +122,7 @@ export default function AdminPage() {
         setPrice(''); 
         setStock(''); 
         setCategory('Men'); 
-        setColor(''); // NEW: Reset color
+        setColor('');
         setSizes(''); 
         setImageFiles([]);
         e.target.reset();
