@@ -12,6 +12,7 @@ import SignUp from './pages/SignUp.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import AdminPage from './pages/AdminPage.jsx';
+import SlideshowManagement from './pages/SlideshowManagement.jsx'; // <-- Add this import at the top
 import { supabase } from './supabase';
 import { Toaster, toast } from 'react-hot-toast';
 
@@ -59,7 +60,7 @@ export default function App() {
     toast.success(`${productToRemove.name} removed from cart.`);
   };
 
-  // This is the full, working handleCheckout function that calls the backend to send emails.
+  // This is the updated handleCheckout function that includes user profile data
   const handleCheckout = async () => {
     if (!session) {
       toast.error("Please log in to continue.");
@@ -70,17 +71,47 @@ export default function App() {
       return;
     }
 
-    const { data, error } = await supabase.functions.invoke('create-order-and-notify', {
-      body: { cartItems },
-    });
+    try {
+      // First, fetch the user's profile information
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name, phone, address')
+        .eq('id', session.user.id)
+        .single();
 
-    if (error) {
-      console.error("Error from Edge Function:", error);
-      toast.error("There was an issue placing your order. Please try again.");
-    } else {
-      toast.success("Order placed successfully! Please check your email.");
-      setCartItems([]);
-      setCartOpen(false);
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+        toast.error("Unable to retrieve your profile information. Please update your profile first.");
+        return;
+      }
+
+      // Prepare the order data with both cart items and user info
+      const orderData = {
+        cartItems,
+        userInfo: {
+          email: session.user.email,
+          full_name: profileData?.full_name || 'Not provided',
+          phone: profileData?.phone || 'Not provided',
+          address: profileData?.address || 'Not provided'
+        }
+      };
+
+      // Send the complete order data to the backend
+      const { data, error } = await supabase.functions.invoke('create-order-and-notify', {
+        body: orderData,
+      });
+
+      if (error) {
+        console.error("Error from Edge Function:", error);
+        toast.error("There was an issue placing your order. Please try again.");
+      } else {
+        toast.success("Order placed successfully! Please check your email.");
+        setCartItems([]);
+        setCartOpen(false);
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error("An unexpected error occurred. Please try again.");
     }
   };
 
@@ -94,11 +125,13 @@ export default function App() {
         <Route path='/women' element={<Category category='women' />} />
         <Route path='/new-arrivals' element={<Category category='new' />} />
         <Route path='/sale' element={<Category category='sale' />} />
+        <Route path='/unisex' element={<Category category='unisex' />} /> {/* <-- Added this line */}
         <Route path='/product/:id' element={<ProductPage addToCart={addToCart} />} />
         <Route path='/login' element={<Login />} />
         <Route path='/signup' element={<SignUp />} />
         <Route path='/account' element={<AccountPage />} />
         <Route path='/admin' element={<AdminPage />} />
+        <Route path='/slideshow' element={<SlideshowManagement />} />
         <Route path='*' element={<Navigate to='/' replace />} />
       </Routes>
       <Footer />

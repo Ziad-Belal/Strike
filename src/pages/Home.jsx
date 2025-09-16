@@ -1,7 +1,7 @@
 // src/pages/Home.jsx
 
 import React, { useState, useEffect } from 'react'
-import HeroCarousel from '../components/HeroCarousel.jsx'
+import AdminSlideshow from '../components/AdminSlideshow.jsx'  // Replace HeroCarousel import
 import ProductGrid from '../components/ProductGrid.jsx'
 import { supabase } from '../supabase' 
 
@@ -39,7 +39,8 @@ export default function Home() {
 
   return (
     <div>
-      <HeroCarousel />
+      {/* Replace HeroCarousel with AdminSlideshow */}
+      <AdminSlideshow />
 
       <section className='container py-10'>
         <SectionHeader title='New Arrivals' linkText='Shop New Arrivals' linkTo='/new-arrivals' />

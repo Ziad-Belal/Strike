@@ -39,7 +39,7 @@ export default function ProductCard({ product }) {
         
         {/* Price */}
         <div className='text-right font-bold'>
-          ${Number(product.price).toFixed(2)}
+          {Number(product.price).toFixed(2)} EGP
         </div>
       </div>
     </div>

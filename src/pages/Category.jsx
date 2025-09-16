@@ -1,90 +1,84 @@
 // src/pages/Category.jsx
 
 import React, { useState, useEffect } from 'react'
-import Filters from '../components/Filters.jsx'
+import { useParams } from 'react-router-dom'
 import ProductGrid from '../components/ProductGrid.jsx'
-import { supabase } from '../supabase' // Make sure this path is correct
+import Filters from '../components/Filters.jsx'
+import { supabase } from '../supabase'
 
 export default function Category({ category }) {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
-
-  // These filter states can remain for the UI, but we won't use them for now
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  const [size, setSize] = useState(null)
-  const [color, setColor] = useState(null)
+  const [filters, setFilters] = useState({})
 
   useEffect(() => {
-    // This function will run whenever the 'category' prop changes
-    async function getProductsByCategory() {
-      setLoading(true)
+    fetchProducts()
+  }, [category])
 
-      // Map the URL category to the database category name
-      let dbCategory = category;
-      if (category === 'new') {
-        dbCategory = 'New Arrivals';
-      } else if (category === 'sale') {
-        dbCategory = 'Sale';
-      } else {
-        // Capitalize first letter for "men", "women", etc.
-        dbCategory = category.charAt(0).toUpperCase() + category.slice(1);
-      }
-
-      // Fetch products where the 'category' column matches
-      const { data, error } = await supabase
+  const fetchProducts = async () => {
+    setLoading(true)
+    
+    try {
+      let query = supabase
         .from('products')
         .select('*')
-        .eq('category', dbCategory) // The filtering happens here!
+        .eq('is_deleted', false) // Only show non-deleted products
+
+      // Handle "New Arrivals" specially - show newest products from all categories
+      if (category === 'new') {
+        query = query.order('created_at', { ascending: false }).limit(20) // Show 20 newest products
+      } else {
+        // For all other categories, filter by category
+        query = query.eq('category', category).order('created_at', { ascending: false })
+      }
+
+      const { data, error } = await query
 
       if (error) {
-        console.error('Error fetching category products:', error)
+        console.error('Error fetching products:', error)
+        setProducts([])
       } else {
-        setProducts(data)
+        setProducts(data || [])
       }
-      setLoading(false)
+    } catch (error) {
+      console.error('Error in fetchProducts:', error)
+      setProducts([])
     }
+    
+    setLoading(false)
+  }
 
-    getProductsByCategory()
-  }, [category]) // The effect re-runs if you navigate from /men to /women
-
-  // This logic correctly sets the page title
-  const title =
-    category === 'sale' ? 'Sales' :
-    category === 'new' ? 'New Arrivals' :
-    category.charAt(0).toUpperCase() + category.slice(1)
+  // Get the display title for the page
+  const getTitle = () => {
+    if (category === 'new') return 'New Arrivals'
+    return category.charAt(0).toUpperCase() + category.slice(1)
+  }
 
   if (loading) {
-    return <div className='container py-8 text-center'>Loading Products...</div>
+    return <div className="container py-10 text-center">Loading products...</div>
   }
 
   return (
-    <div className='container py-8'>
-      <div className='mb-6 flex items-center justify-between'>
-        <h1 className='text-2xl font-bold'>{title}</h1>
-        <button className='sm:hidden rounded-2xl border border-black/10 px-3 py-2' onClick={() => setFiltersOpen(true)}>Filters</button>
+    <div className='container py-10'>
+      <div className='mb-8'>
+        <h1 className='text-3xl font-bold'>{getTitle()}</h1>
+        {category === 'new' && (
+          <p className='text-gray-600 mt-2'>Our latest products from all categories</p>
+        )}
       </div>
-
-      <div className='grid grid-cols-1 gap-8 md:grid-cols-[240px,1fr]'>
-        <aside className='hidden md:block'>
-          {/* The Filters component is still here, but won't do anything yet */}
-          <Filters size={size} setSize={setSize} color={color} setColor={setColor} />
-        </aside>
-        <main>
-          {/* Use the new 'products' state from Supabase */}
-          <div className='mb-4 text-sm text-black/60'>{products.length} products</div>
-          <ProductGrid products={products} />
-        </main>
-      </div>
-
-      {/* The mobile filter UI remains the same */}
-      {filtersOpen && (
-        <div className='fixed inset-0 z-40 bg-black/50 p-4 md:hidden' onClick={() => setFiltersOpen(false)}>
-          <div className='mx-auto max-w-sm rounded-3xl bg-white p-4' onClick={(e)=>e.stopPropagation()}>
-            <div className='flex items-center justify-between'><h2 className='text-lg font-semibold'>Filters</h2><button onClick={() => setFiltersOpen(false)}>✕</button></div>
-            <div className='mt-4'><Filters size={size} setSize={setSize} color={color} setColor={setColor} /></div>
-          </div>
+      
+      <div className='grid gap-8 lg:grid-cols-[250px_1fr]'>
+        <Filters filters={filters} onFilterChange={setFilters} />
+        <div>
+          {products.length === 0 ? (
+            <div className="text-center py-10 text-gray-500">
+              No products found in this category.
+            </div>
+          ) : (
+            <ProductGrid products={products} />
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

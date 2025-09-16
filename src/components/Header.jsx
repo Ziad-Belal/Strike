@@ -6,10 +6,12 @@ import { ShoppingCart, User, Search, Menu, X } from 'lucide-react';
 import { Modal, Sheet, Button, Input, Badge } from './atoms.jsx';
 import { supabase } from '../supabase';
 import { motion } from 'framer-motion';
+import logo from '../assets/Screenshot 2025-09-15 171641.png';
 
 const NAV = [
   { key: 'men', label: 'Men', to: '/men' },
   { key: 'women', label: 'Women', to: '/women' },
+  { key: 'unisex', label: 'Unisex', to: '/unisex' }, // NEW
   { key: 'new', label: 'New Arrivals', to: '/new-arrivals' },
   { key: 'sale', label: 'Sales', to: '/sale' },
 ];
@@ -48,8 +50,8 @@ export default function Header({ session, cartCount, onOpenCart }) {
           <div className='flex items-center gap-2'>
             <button className='sm:hidden' onClick={() => setMobileOpen(true)} aria-label='Open navigation'><Menu /></button>
             <Link to='/' className='flex items-center gap-2'>
-              <div className='grid h-8 w-8 place-content-center rounded-xl bg-black text-white font-black'>S</div>
-              <span className='hidden sm:block font-semibold'>Strike</span>
+              <img src={logo} alt="Strike Logo" className="h-8 w-8 object-contain" />
+              
             </Link>
           </div>
           <nav className='hidden items-center gap-6 sm:flex'>
@@ -87,7 +89,7 @@ export default function Header({ session, cartCount, onOpenCart }) {
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <Link to="/" className="flex items-center gap-2">
               <div className="grid h-8 w-8 place-content-center rounded-xl bg-black text-white font-black">S</div>
-              <span className="font-semibold">Strike</span>
+    
             </Link>
             <button onClick={() => setMobileOpen(false)}><X size={28} /></button>
           </div>
