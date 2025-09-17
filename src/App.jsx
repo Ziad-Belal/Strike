@@ -13,6 +13,8 @@ import AccountPage from './pages/AccountPage.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import SlideshowManagement from './pages/SlideshowManagement.jsx'; // <-- Add this import at the top
+import SupabaseTest from './components/SupabaseTest.jsx';
+import FixProfiles from './components/FixProfiles.jsx';
 import { supabase } from './supabase';
 import { Toaster, toast } from 'react-hot-toast';
 
@@ -72,17 +74,19 @@ export default function App() {
     }
 
     try {
-      // First, fetch the user's profile information
+      // First, fetch the user's profile information without .single()
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('full_name, phone, address')
-        .eq('id', session.user.id)
-        .single();
+        .select('*')
+        .eq('id', session.user.id);
 
+      // Don't block checkout if profile doesn't exist, just use default values
+      let profile = null;
       if (profileError) {
         console.error("Error fetching profile:", profileError);
-        toast.error("Unable to retrieve your profile information. Please update your profile first.");
-        return;
+        console.log("Proceeding with checkout using email only");
+      } else if (profileData && profileData.length > 0) {
+        profile = profileData[0];
       }
 
       // Prepare the order data with both cart items and user info
@@ -90,9 +94,9 @@ export default function App() {
         cartItems,
         userInfo: {
           email: session.user.email,
-          full_name: profileData?.full_name || 'Not provided',
-          phone: profileData?.phone || 'Not provided',
-          address: profileData?.address || 'Not provided'
+          full_name: profile?.full_name || session.user.email || 'Not provided',
+          phone: profile?.phone || profile?.phone_number || 'Not provided',
+          address: profile?.address || profile?.address_line1 || 'Not provided'
         }
       };
 
@@ -132,6 +136,8 @@ export default function App() {
         <Route path='/account' element={<AccountPage />} />
         <Route path='/admin' element={<AdminPage />} />
         <Route path='/slideshow' element={<SlideshowManagement />} />
+        <Route path='/test-supabase' element={<SupabaseTest />} />
+        <Route path='/fix-profile' element={<FixProfiles />} />
         <Route path='*' element={<Navigate to='/' replace />} />
       </Routes>
       <Footer />

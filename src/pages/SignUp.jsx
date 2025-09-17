@@ -17,43 +17,58 @@ export default function SignUp() {
     e.preventDefault();
     setLoading(true);
 
-    // Sign up user
-    const { data, error } = await supabase.auth.signUp(
-      { email, password },
-      {
-        data: {
-          full_name: fullName,
-          phone_number: phoneNumber,
-          address_line1: address,
+    try {
+      // Sign up user
+      const { data, error } = await supabase.auth.signUp({
+        email, 
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone_number: phoneNumber,
+            address_line1: address,
+          }
+        }
+      });
+
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+        return;
+      }
+
+      // Create profile row in 'profiles' table
+      const user = data?.user;
+      if (user) {
+        // Try multiple column name variations to ensure compatibility
+        const { error: profileError } = await supabase.from('profiles').insert([
+          {
+            id: user.id,
+            full_name: fullName,
+            phone_number: phoneNumber,
+            phone: phoneNumber, // Add both variations
+            address_line1: address,
+            address: address, // Add both variations
+          }
+        ]);
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          toast.error('Profile creation failed: ' + profileError.message);
+          setLoading(false);
+          return;
+        } else {
+          console.log('Profile created successfully for user:', user.id);
         }
       }
-    );
 
-    if (error) {
-      toast.error(error.message);
+      toast.success('Sign up successful! Please check your email to confirm.');
+      navigate('/');
+    } catch (error) {
+      console.error('Signup error:', error);
+      toast.error('An unexpected error occurred during signup.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Create profile row in 'profiles' table
-    const user = data?.user;
-    if (user) {
-      const { error: profileError } = await supabase.from('profiles').insert([
-        {
-          id: user.id,
-          full_name: fullName,
-          phone_number: phoneNumber,
-          address_line1: address,
-        }
-      ]);
-      if (profileError) {
-        toast.error('Profile creation failed: ' + profileError.message);
-      }
-    }
-
-    toast.success('Sign up successful! Please check your email to confirm.');
-    navigate('/');
-    setLoading(false);
   };
 
   return (
