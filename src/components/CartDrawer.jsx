@@ -5,11 +5,13 @@ import { Sheet, Button } from './atoms.jsx'
 
 // Assuming you have a currency helper, otherwise we can use a simple formatter.
 // import { currency } from '../utils/helpers.js'
-const currency = (value) => `$${Number(value).toFixed(2)}`;
+const currency = (value) => `£${Number(value).toFixed(2)}`;
+const SHIPPING_COST = 60;
 
 
 export default function CartDrawer({ open, onClose, items, removeItem, onCheckout }) { // 1. Added onCheckout prop
-  const total = items.reduce((sum, it) => sum + it.price * it.qty, 0);
+  const subtotal = items.reduce((sum, it) => sum + it.price * it.qty, 0);
+  const total = subtotal + (items.length > 0 ? SHIPPING_COST : 0);
 
   // Use a static placeholder image for cart items
   const placeholderImg = 'https://placehold.co/200x200/EEE/31343C?text=Item';
@@ -54,9 +56,17 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
         <div className='mt-6 rounded-2xl bg-black/5 p-4'>
           <div className='flex items-center justify-between text-sm'>
             <span>Subtotal</span>
+            <span>{currency(subtotal)}</span>
+          </div>
+          <div className='flex items-center justify-between text-sm mt-1'>
+            <span>Shipping</span>
+            <span>{currency(SHIPPING_COST)}</span>
+          </div>
+          <hr className='my-2 border-black/10' />
+          <div className='flex items-center justify-between font-semibold'>
+            <span>Total</span>
             <span>{currency(total)}</span>
           </div>
-          <div className='mt-2 text-xs text-black/60'>Taxes and shipping calculated at checkout.</div>
           {/* 4. Connected the onCheckout function to the button */}
           <Button onClick={onCheckout} className='mt-4 w-full'>
             Proceed to Checkout

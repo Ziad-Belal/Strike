@@ -90,8 +90,10 @@ export default function App() {
       }
 
       // Prepare the order data with both cart items and user info
+      const shippingCost = cartItems.length > 0 ? 60 : 0;
       const orderData = {
         cartItems,
+        shippingCost,
         userInfo: {
           email: session.user.email,
           full_name: profile?.full_name || session.user.email || 'Not provided',

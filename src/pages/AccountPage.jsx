@@ -28,17 +28,18 @@ export default function AccountPage() {
         const { data: profileData, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id)
-          .single();
+          .eq('id', user.id);
         
         if (error) {
           console.error('Error fetching profile:', error);
           // This can happen if the profile is missing. The UI will handle it.
-        } else if (profileData) {
-          setProfile(profileData);
-          setFullName(profileData.full_name || '');
-          setPhoneNumber(profileData.phone || ''); // ← Changed from phone_number
-          setAddress(profileData.address || ''); // ← Changed from address_line1
+        } else if (profileData && profileData.length > 0) {
+          const profile = profileData[0];
+          setProfile(profile);
+          setFullName(profile.full_name || '');
+          // Handle both column name variations
+          setPhoneNumber(profile.phone || profile.phone_number || '');
+          setAddress(profile.address || profile.address_line1 || '');
         }
       }
       setLoading(false);
@@ -49,11 +50,16 @@ export default function AccountPage() {
 
   const handleUpdateProfile = async () => {
     if (!user) return;
-    const { error } = await supabase.from('profiles').update({
+    
+    // Update with both column name variations for compatibility
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id, // Include ID for upsert
       full_name: fullName,
-      phone: phoneNumber, // ← Changed from phone_number
-      address: address, // ← Changed from address_line1
-    }).eq('id', user.id);
+      phone: phoneNumber,
+      address: address,
+      phone_number: phoneNumber, // Include both variations
+      address_line1: address,
+    });
 
     if (error) {
       console.error('Update error:', error);
@@ -61,13 +67,12 @@ export default function AccountPage() {
     } else {
       toast.success('Profile updated successfully!');
       // Refresh the profile data
-      const { data: updatedProfile } = await supabase
+      const { data: updatedProfileData } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
-        .single();
-      if (updatedProfile) {
-        setProfile(updatedProfile);
+        .eq('id', user.id);
+      if (updatedProfileData && updatedProfileData.length > 0) {
+        setProfile(updatedProfileData[0]);
       }
     }
   };
@@ -94,9 +99,50 @@ export default function AccountPage() {
 
   if (!profile) {
     return (
-        <div className="container text-center py-10">
-            <p>Could not load your profile details. This can happen right after sign-up. Please try refreshing the page or logging in again.</p>
-            <button onClick={handleLogout} className="mt-4 bg-red-500 text-white p-3 rounded-lg font-bold">Logout</button>
+        <div className="container text-center py-10 max-w-md mx-auto">
+            <h2 className="text-2xl font-bold mb-4">Complete Your Profile</h2>
+            <p className="mb-6 text-gray-600">Let's set up your profile so you can place orders.</p>
+            
+            <div className="space-y-4">
+              <input 
+                type="text" 
+                placeholder="Full Name" 
+                value={fullName} 
+                onChange={(e) => setFullName(e.target.value)} 
+                className="w-full p-3 border rounded-lg" 
+                required 
+              />
+              <input 
+                type="tel" 
+                placeholder="Phone Number" 
+                value={phoneNumber} 
+                onChange={(e) => setPhoneNumber(e.target.value)} 
+                className="w-full p-3 border rounded-lg" 
+                required 
+              />
+              <input 
+                type="text" 
+                placeholder="Home Address" 
+                value={address} 
+                onChange={(e) => setAddress(e.target.value)} 
+                className="w-full p-3 border rounded-lg" 
+                required 
+              />
+              
+              <button 
+                onClick={handleUpdateProfile} 
+                className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700"
+              >
+                Create My Profile
+              </button>
+              
+              <button 
+                onClick={handleLogout} 
+                className="w-full bg-gray-500 text-white p-3 rounded-lg font-bold hover:bg-gray-600"
+              >
+                Logout
+              </button>
+            </div>
         </div>
     );
   }
