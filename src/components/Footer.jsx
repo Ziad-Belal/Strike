@@ -63,7 +63,7 @@ export default function Footer() {
         </div>
       </div>
       <div className='border-t text-center py-4 text-xs'>
-        © {new Date().getFullYear()} Strike | the website is under development
+        © {new Date().getFullYear()} Strike 
       </div>
     </footer>
   );

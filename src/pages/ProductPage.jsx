@@ -4,10 +4,33 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { Input, Button } from '../components/atoms.jsx';
-import { ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const currency = (value) => `EGP ${Number(value).toFixed(2)}`;
+
+// Simple Image Modal Component
+function ImageModal({ imageUrl, onClose }) {
+  if (!imageUrl) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" 
+      onClick={onClose}
+    >
+      <div className="relative max-w-full max-h-full" onClick={(e) => e.stopPropagation()}>
+        <img src={imageUrl} alt="Full screen product view" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 bg-white/80 hover:bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-all"
+        >
+          <X className="w-6 h-6 text-black" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 
 export default function ProductPage({ addToCart }) {
   const { id } = useParams();
@@ -16,6 +39,7 @@ export default function ProductPage({ addToCart }) {
   const [qty, setQty] = useState(1);
   const [selectedSize, setSelectedSize] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     supabase.from('products').select('*').eq('id', id).single()
@@ -43,17 +67,22 @@ export default function ProductPage({ addToCart }) {
     addToCart(product, selectedSize, qty);
   };
 
-  const nextImage = () => {
+  const nextImage = (e) => {
+    e.stopPropagation(); // prevent modal from opening
     setSelectedImageIndex((prev) => 
       prev === productImages.length - 1 ? 0 : prev + 1
     );
   };
 
-  const prevImage = () => {
+  const prevImage = (e) => {
+    e.stopPropagation(); // prevent modal from opening
     setSelectedImageIndex((prev) => 
       prev === 0 ? productImages.length - 1 : prev - 1
     );
   };
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
 
   return (
     <div className='container py-10'>
@@ -65,7 +94,8 @@ export default function ProductPage({ addToCart }) {
             <img 
               src={productImages[selectedImageIndex] || 'https://placehold.co/800x600'} 
               alt={`${product.name} ${selectedImageIndex + 1}`} 
-              className='w-full rounded-3xl object-cover aspect-[3/2] max-h-[600px]' 
+              className='w-full rounded-3xl object-cover aspect-[3/2] max-h-[600px] cursor-pointer hover:opacity-95 transition-opacity' 
+              onClick={openModal}
             />
             
             {/* Navigation arrows (only show if more than 1 image) */}
@@ -165,6 +195,11 @@ export default function ProductPage({ addToCart }) {
           </div>
         </div>
       </div>
+      
+      {isModalOpen && <ImageModal 
+        imageUrl={productImages[selectedImageIndex]}
+        onClose={closeModal} 
+      />}
     </div>
   );
 }
