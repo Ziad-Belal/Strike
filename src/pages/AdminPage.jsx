@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-hot-toast';
-import { Trash2, Plus, Package, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Trash2, Plus, Package, Upload, X, Image as ImageIcon, Edit } from 'lucide-react';
 
 const ADMIN_PASSWORD = "StrikeSports";
 
@@ -25,6 +25,7 @@ export default function AdminPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [editingDetails, setEditingDetails] = useState(null);
 
   // Password form
   const handleLogin = (e) => {
@@ -153,6 +154,35 @@ export default function AdminPage() {
     } else {
       toast.success(`"${productName}" has been removed from store`);
       fetchProducts(); // Refresh the list
+    }
+  };
+
+  // Update product details
+  const handleUpdateProduct = async (e) => {
+    e.preventDefault();
+    const product = editingDetails;
+    
+    const available_sizes = product.sizes.split(',').map(s => s.trim()).filter(Boolean);
+
+    const { error } = await supabase
+      .from('products')
+      .update({
+        name: product.name,
+        description: product.description,
+        price: parseFloat(product.price),
+        stock: parseInt(product.stock),
+        category: product.category,
+        color: product.color,
+        available_sizes,
+      })
+      .eq('id', product.id);
+
+    if (error) {
+      toast.error('Error updating product: ' + error.message);
+    } else {
+      toast.success('Product updated successfully!');
+      setEditingDetails(null);
+      fetchProducts();
     }
   };
 
@@ -393,6 +423,13 @@ export default function AdminPage() {
                       {/* Actions */}
                       <div className="flex gap-2">
                         <button
+                          onClick={() => setEditingDetails(editingDetails && editingDetails.id === product.id ? null : {...product, sizes: product.available_sizes ? product.available_sizes.join(', ') : ''})}
+                          className="bg-green-100 hover:bg-green-200 text-green-600 p-2 rounded-lg transition-colors"
+                          title="Edit product details"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => setEditingProduct(editingProduct === product.id ? null : product.id)}
                           className="bg-blue-100 hover:bg-blue-200 text-blue-600 p-2 rounded-lg transition-colors"
                           title="Manage images"
@@ -408,6 +445,114 @@ export default function AdminPage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* Edit Details Section */}
+                    {editingDetails && editingDetails.id === product.id && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="font-medium mb-3">Edit Product Details</h4>
+                        <form onSubmit={handleUpdateProduct} className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Product Name</label>
+                              <input 
+                                type="text" 
+                                value={editingDetails.name} 
+                                onChange={e => setEditingDetails({...editingDetails, name: e.target.value})} 
+                                className="w-full p-2 border rounded" 
+                                required 
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Price ($)</label>
+                              <input 
+                                type="number" 
+                                step="0.01" 
+                                value={editingDetails.price} 
+                                onChange={e => setEditingDetails({...editingDetails, price: e.target.value})} 
+                                className="w-full p-2 border rounded" 
+                                required 
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Stock</label>
+                              <input 
+                                type="number" 
+                                value={editingDetails.stock} 
+                                onChange={e => setEditingDetails({...editingDetails, stock: e.target.value})} 
+                                className="w-full p-2 border rounded" 
+                                required 
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Color</label>
+                              <input 
+                                type="text" 
+                                value={editingDetails.color || ''} 
+                                onChange={e => setEditingDetails({...editingDetails, color: e.target.value})} 
+                                className="w-full p-2 border rounded" 
+                                placeholder="e.g. Red, Blue, Black" 
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Category</label>
+                              <select 
+                                value={editingDetails.category} 
+                                onChange={e => setEditingDetails({...editingDetails, category: e.target.value})} 
+                                className="w-full p-2 border rounded bg-white" 
+                                required
+                              >
+                                <option>Men</option>
+                                <option>Women</option>
+                                <option>Unisex</option>
+                                <option>Kids</option>
+                                <option>Lifestyle</option>
+                                <option>Training</option>
+                                <option>Basketball</option>
+                                <option>Sale</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Sizes (comma separated)</label>
+                              <input 
+                                type="text" 
+                                value={editingDetails.sizes || ''} 
+                                onChange={e => setEditingDetails({...editingDetails, sizes: e.target.value})} 
+                                className="w-full p-2 border rounded" 
+                                placeholder="e.g. 40,41,42,43" 
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Description</label>
+                            <textarea 
+                              value={editingDetails.description} 
+                              onChange={e => setEditingDetails({...editingDetails, description: e.target.value})} 
+                              className="w-full p-2 border rounded" 
+                              rows="3"
+                            ></textarea>
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              type="submit" 
+                              className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700"
+                            >
+                              Update Product
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => setEditingDetails(null)} 
+                              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-300"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
 
                     {/* Image Management Section */}
                     {editingProduct === product.id && (
