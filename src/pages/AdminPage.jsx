@@ -316,7 +316,7 @@ export default function AdminPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Price ($)</label>
+                <label className="block text-sm font-medium mb-1">Price (EGP)</label>
                 <input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="w-full p-2 border rounded" required />
               </div>
               <div>
@@ -408,7 +408,7 @@ export default function AdminPage() {
                         <h3 className="font-bold text-lg">{product.name}</h3>
                         <p className="text-gray-600 text-sm">{product.description}</p>
                         <div className="flex items-center gap-4 mt-2 text-sm">
-                          <span className="font-medium">${Number(product.price).toFixed(2)}</span>
+                          <span className="font-medium">EGP{Number(product.price).toFixed(2)}</span>
                           <span className="text-gray-500">Stock: {product.stock}</span>
                           <span className="text-gray-500">Category: {product.category}</span>
                           {product.color && (
