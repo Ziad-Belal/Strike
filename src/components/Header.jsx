@@ -51,14 +51,14 @@ export default function Header({ session, cartCount, onOpenCart }) {
             <button className='sm:hidden' onClick={() => setMobileOpen(true)} aria-label='Open navigation'><Menu /></button>
             <Link to='/' className='flex items-center gap-2'>
               <img src={logo} alt="Strike Logo" className="h-8 w-8 object-contain" />
-              
+
             </Link>
           </div>
           <nav className='hidden items-center gap-6 sm:flex'>
             {NAV.map((c) => (<Link key={c.key} to={c.to} className='text-sm font-medium'>{c.label}</Link>))}
             {isAdmin && (<Link to="/admin" className='text-sm font-medium text-red-600'>Admin</Link>)}
             <button className='flex items-center gap-1 text-sm text-gray-500 hover:text-black' onClick={() => setSearchOpen(true)}>
-              <Search size={18}/> Search
+              <Search size={18} /> Search
             </button>
           </nav>
           <div className='flex items-center gap-2'>
@@ -66,12 +66,12 @@ export default function Header({ session, cartCount, onOpenCart }) {
               <Link to="/account" className='hidden sm:flex items-center gap-2 text-sm'><User size={18} />{session.user.email}</Link>
             ) : (
               <div className="hidden sm:flex items-center gap-2">
-                 <Button variant='ghost' size='sm' asChild><Link to="/login">Login</Link></Button>
-                 <Button size='sm' asChild><Link to="/signup">Sign Up</Link></Button>
+                <Button variant='ghost' size='sm' asChild><Link to="/login">Login</Link></Button>
+                <Button size='sm' asChild><Link to="/signup">Sign Up</Link></Button>
               </div>
             )}
             <Button variant='outline' className='gap-2' onClick={onOpenCart}>
-              <ShoppingCart size={18}/><span className='hidden md:inline'>Cart</span>
+              <ShoppingCart size={18} /><span className='hidden md:inline'>Cart</span>
               {cartCount > 0 && <Badge>{cartCount}</Badge>}
             </Button>
           </div>
@@ -85,11 +85,10 @@ export default function Header({ session, cartCount, onOpenCart }) {
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className="fixed inset-0 z-50 bg-white flex flex-col w-full max-w-xs"
         >
-          {/* Header row */}
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <Link to="/" className="flex items-center gap-2">
-              <div className="grid h-8 w-8 place-content-center rounded-xl bg-black text-white font-black">S</div>
-    
+              <img src={logo} alt="Strike Logo" className="h-8 w-8 object-contain" />
+              <span className="text-lg font-semibold tracking-wide">Strike</span>
             </Link>
             <button onClick={() => setMobileOpen(false)}><X size={28} /></button>
           </div>
@@ -121,7 +120,7 @@ export default function Header({ session, cartCount, onOpenCart }) {
           {/* Cart button at the bottom */}
           <div className="p-4 border-t flex justify-center bg-white">
             <Button variant='outline' className='gap-2 w-full' onClick={() => { setMobileOpen(false); onOpenCart(); }}>
-              <ShoppingCart size={18}/> Cart {cartCount > 0 && <Badge>{cartCount}</Badge>}
+              <ShoppingCart size={18} /> Cart {cartCount > 0 && <Badge>{cartCount}</Badge>}
             </Button>
           </div>
         </motion.div>
@@ -147,7 +146,7 @@ function SearchModal({ open, onClose }) {
     }, 300);
     return () => clearTimeout(timer);
   }, [q]);
-  
+
   const handleNavigate = (productId) => {
     onClose();
     navigate(`/product/${productId}`);
@@ -156,13 +155,13 @@ function SearchModal({ open, onClose }) {
   return (
     <Modal open={open} onClose={onClose}>
       <div className='flex items-center gap-3'>
-        <Search/>
+        <Search />
         <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder='Search products...' />
       </div>
       <div className='mt-4 max-h-80 overflow-y-auto divide-y'>
         {results.map(p => (
           <button key={p.id} className='flex w-full items-center gap-4 py-3 text-left hover:bg-gray-100' onClick={() => handleNavigate(p.id)}>
-            <img src={p.image_url || 'https://placehold.co/100x100'} alt={p.name} className='h-16 w-16 rounded-lg object-cover'/>
+            <img src={p.image_url || 'https://placehold.co/100x100'} alt={p.name} className='h-16 w-16 rounded-lg object-cover' />
             <div>
               <div className='font-medium'>{p.name}</div>
               <div className='text-sm text-gray-600'>${Number(p.price).toFixed(2)}</div>
