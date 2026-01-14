@@ -91,7 +91,7 @@ export default function Header({ session, cartCount, onOpenCart }) {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            className="fixed inset-0 z-50 bg-white"
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -113,13 +113,13 @@ export default function Header({ session, cartCount, onOpenCart }) {
                 <button onClick={() => setMobileOpen(false)}><X size={28} /></button>
               </div>
 
-              <nav className="px-2 py-3 space-y-1 border-b">
+              <nav className="px-2 py-3 space-y-1 border-b bg-white">
                 {NAV.map((c) => (
                   <Link
                     key={c.key}
                     to={c.to}
                     onClick={() => setMobileOpen(false)}
-                    className="block rounded-xl px-4 py-3 text-base font-medium hover:bg-gray-100"
+                    className="block rounded-xl px-4 py-3 text-base font-medium bg-white hover:bg-gray-50"
                   >
                     {c.label}
                   </Link>
@@ -128,19 +128,19 @@ export default function Header({ session, cartCount, onOpenCart }) {
                   <Link
                     to="/admin"
                     onClick={() => setMobileOpen(false)}
-                    className="block rounded-xl px-4 py-3 text-base font-medium text-red-600 hover:bg-gray-100"
+                    className="block rounded-xl px-4 py-3 text-base font-medium text-red-600 bg-white hover:bg-gray-50"
                   >
                     Admin
                   </Link>
                 )}
               </nav>
 
-              <div className="px-4 py-3 space-y-2">
+              <div className="px-4 py-3 space-y-2 bg-white">
                 {session ? (
                   <Link
                     to="/account"
                     onClick={() => setMobileOpen(false)}
-                    className="block rounded-xl px-4 py-3 text-center bg-gray-100 font-semibold"
+                    className="block rounded-xl px-4 py-3 text-center bg-gray-100 font-semibold hover:bg-gray-200"
                   >
                     My Account
                   </Link>

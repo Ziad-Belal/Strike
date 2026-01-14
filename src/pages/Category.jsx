@@ -13,7 +13,7 @@ export default function Category({ category }) {
 
   useEffect(() => {
     fetchProducts()
-  }, [category])
+  }, [category, filters])
 
   const fetchProducts = async () => {
     setLoading(true)
@@ -29,7 +29,7 @@ export default function Category({ category }) {
         query = query.order('created_at', { ascending: false }).limit(20) // Show 20 newest products
       } else {
         // For all other categories, filter by category
-        query = query.eq('category', category).order('created_at', { ascending: false })
+        query = query.ilike('category', category).order('created_at', { ascending: false })
       }
 
       const { data, error } = await query
@@ -38,7 +38,22 @@ export default function Category({ category }) {
         console.error('Error fetching products:', error)
         setProducts([])
       } else {
-        setProducts(data || [])
+        // Apply client-side filtering for size and color
+        let filteredProducts = data || []
+        
+        if (filters?.size) {
+          filteredProducts = filteredProducts.filter(product => 
+            product.available_sizes && product.available_sizes.includes(filters.size)
+          )
+        }
+        
+        if (filters?.color) {
+          filteredProducts = filteredProducts.filter(product => 
+            product.color && product.color.toLowerCase().includes(filters.color.toLowerCase())
+          )
+        }
+        
+        setProducts(filteredProducts)
       }
     } catch (error) {
       console.error('Error in fetchProducts:', error)

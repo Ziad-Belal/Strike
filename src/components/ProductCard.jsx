@@ -42,6 +42,10 @@ export default function ProductCard({ product }) {
           {Number(product.price).toFixed(2)} EGP
         </div>
       </div>
+      {/* Stock Info */}
+      <div className={`mt-2 text-sm ${product.stock > 0 && product.stock < 10 ? 'text-red-600' : 'text-gray-600'}`}>
+        {product.stock > 0 ? `${product.stock} left in stock` : 'Out of stock'}
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@ export default function AdminPage() {
   const [stock, setStock] = useState('');
   const [sizes, setSizes] = useState('');
   const [color, setColor] = useState(''); // NEW: Color state
-  const [category, setCategory] = useState('Men');
+  const [category, setCategory] = useState('men');
   const [imageFiles, setImageFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -122,7 +122,7 @@ export default function AdminPage() {
         setDescription(''); 
         setPrice(''); 
         setStock(''); 
-        setCategory('Men'); 
+        setCategory('men'); 
         setColor('');
         setSizes(''); 
         setImageFiles([]);
@@ -332,14 +332,14 @@ export default function AdminPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">Category</label>
                 <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border rounded bg-white" required>
-                  <option>Men</option>
-                  <option>Women</option>
-                  <option>Unisex</option>
-                  <option>Kids</option>
-                  <option>Lifestyle</option>
-                  <option>Training</option>
-                  <option>Basketball</option>
-                  <option>Sale</option>
+                  <option value="men">Men</option>
+                  <option value="women">Women</option>
+                  <option value="unisex">Unisex</option>
+                  <option value="kids">Kids</option>
+                  <option value="lifestyle">Lifestyle</option>
+                  <option value="training">Training</option>
+                  <option value="basketball">Basketball</option>
+                  <option value="sale">Sale</option>
                 </select>
               </div>
             </div>
@@ -505,14 +505,14 @@ export default function AdminPage() {
                                 className="w-full p-2 border rounded bg-white" 
                                 required
                               >
-                                <option>Men</option>
-                                <option>Women</option>
-                                <option>Unisex</option>
-                                <option>Kids</option>
-                                <option>Lifestyle</option>
-                                <option>Training</option>
-                                <option>Basketball</option>
-                                <option>Sale</option>
+                                <option value="men">Men</option>
+                                <option value="women">Women</option>
+                                <option value="unisex">Unisex</option>
+                                <option value="kids">Kids</option>
+                                <option value="lifestyle">Lifestyle</option>
+                                <option value="training">Training</option>
+                                <option value="basketball">Basketball</option>
+                                <option value="sale">Sale</option>
                               </select>
                             </div>
                             <div>

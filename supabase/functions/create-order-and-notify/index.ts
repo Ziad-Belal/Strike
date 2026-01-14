@@ -43,6 +43,14 @@ serve(async (req) => {
     const orderItemsToInsert = cartItems.map((item: any) => ({ order_id, product_id: item.id, quantity: item.qty, price: item.price }))
     await supabaseAdmin.from('order_items').insert(orderItemsToInsert)
     
+    // Decrease stock for each product
+    for (const item of cartItems) {
+      await supabaseAdmin
+        .from('products')
+        .update({ stock: supabaseAdmin.raw('stock - ?', [item.qty]) })
+        .eq('id', item.id)
+    }
+    
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     
     // Create detailed order items list
