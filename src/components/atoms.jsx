@@ -60,7 +60,7 @@ export const Sheet = ({ open, onClose, side = 'right', children }) => {
             initial={{ x: side === 'right' ? 400 : -400 }}
             animate={{ x: 0 }}
             exit={{ x: side === 'right' ? 400 : -400 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            transition={{ type: 'tween', duration: 0.22, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
           >
             {children}

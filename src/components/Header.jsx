@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, User, Search, Menu, X } from 'lucide-react';
-import { Modal, Sheet, Button, Input, Badge } from './atoms.jsx';
+import { Modal, Button, Input, Badge } from './atoms.jsx';
 import { supabase } from '../supabase';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/Screenshot 2025-09-15 171641.png';
 
 const NAV = [
@@ -41,6 +41,17 @@ export default function Header({ session, cartCount, onOpenCart }) {
     }
   }, [session]);
 
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
+
   const isAdmin = profile?.role === 'admin';
 
   return (
@@ -51,7 +62,6 @@ export default function Header({ session, cartCount, onOpenCart }) {
             <button className='sm:hidden' onClick={() => setMobileOpen(true)} aria-label='Open navigation'><Menu /></button>
             <Link to='/' className='flex items-center gap-2'>
               <img src={logo} alt="Strike Logo" className="h-8 w-8 object-contain" />
-
             </Link>
           </div>
           <nav className='hidden items-center gap-6 sm:flex'>
@@ -61,7 +71,7 @@ export default function Header({ session, cartCount, onOpenCart }) {
               <Search size={18} /> Search
             </button>
           </nav>
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-3'>
             {session ? (
               <Link to="/account" className='hidden sm:flex items-center gap-2 text-sm'><User size={18} />{session.user.email}</Link>
             ) : (
@@ -74,57 +84,95 @@ export default function Header({ session, cartCount, onOpenCart }) {
               <ShoppingCart size={18} /><span className='hidden md:inline'>Cart</span>
               {cartCount > 0 && <Badge>{cartCount}</Badge>}
             </Button>
+            <span className='hidden sm:inline text-xl font-bold tracking-tight'>Strike</span>
           </div>
         </div>
       </div>
-      <Sheet open={mobileOpen} onClose={() => setMobileOpen(false)} side='left'>
-        <motion.div
-          initial={{ x: '-100%' }}
-          animate={{ x: 0 }}
-          exit={{ x: '-100%' }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="fixed inset-0 z-50 bg-white flex flex-col w-full max-w-xs"
-        >
-          <div className="flex items-center justify-between p-4 border-b bg-white">
-            <Link to="/" className="flex items-center gap-2">
-              <img src={logo} alt="Strike Logo" className="h-8 w-8 object-contain" />
-              <span className="text-lg font-semibold tracking-wide">Strike</span>
-            </Link>
-            <button onClick={() => setMobileOpen(false)}><X size={28} /></button>
-          </div>
-          {/* Menu content */}
-          <div className="flex-1 flex flex-col justify-start px-4 py-6 space-y-2 bg-white">
-            {NAV.map((c) => (
-              <Link key={c.key} to={c.to} onClick={() => setMobileOpen(false)} className="block rounded-lg p-4 text-lg font-medium hover:bg-gray-100">
-                {c.label}
-              </Link>
-            ))}
-            {isAdmin && (
-              <Link to="/admin" onClick={() => setMobileOpen(false)} className="block rounded-lg p-4 text-lg font-medium text-red-600 hover:bg-gray-100">
-                Admin
-              </Link>
-            )}
-            <div className="mt-6">
-              {session ? (
-                <Link to="/account" onClick={() => setMobileOpen(false)} className="block p-4 text-center rounded-lg bg-gray-100 font-semibold">
-                  My Account
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 bg-white"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileOpen(false)}
+          >
+            <motion.div
+              className="relative h-full w-full bg-white flex flex-col shadow-xl"
+              initial={{ x: -320 }}
+              animate={{ x: 0 }}
+              exit={{ x: -320 }}
+              transition={{ type: 'tween', duration: 0.22, ease: 'easeOut' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b">
+                <Link to="/" className="flex items-center gap-3">
+                  <img src={logo} alt="Strike Logo" className="h-9 w-9 rounded-2xl object-cover" />
+                  <span className="text-lg font-semibold tracking-tight">Strike</span>
                 </Link>
-              ) : (
-                <div className="space-y-2">
-                  <Button asChild className="w-full"><Link to="/login" onClick={() => setMobileOpen(false)}>Login</Link></Button>
-                  <Button variant="outline" asChild className="w-full"><Link to="/signup" onClick={() => setMobileOpen(false)}>Sign Up</Link></Button>
-                </div>
-              )}
-            </div>
-          </div>
-          {/* Cart button at the bottom */}
-          <div className="p-4 border-t flex justify-center bg-white">
-            <Button variant='outline' className='gap-2 w-full' onClick={() => { setMobileOpen(false); onOpenCart(); }}>
-              <ShoppingCart size={18} /> Cart {cartCount > 0 && <Badge>{cartCount}</Badge>}
-            </Button>
-          </div>
-        </motion.div>
-      </Sheet>
+                <button onClick={() => setMobileOpen(false)}><X size={28} /></button>
+              </div>
+
+              <nav className="px-2 py-3 space-y-1 border-b">
+                {NAV.map((c) => (
+                  <Link
+                    key={c.key}
+                    to={c.to}
+                    onClick={() => setMobileOpen(false)}
+                    className="block rounded-xl px-4 py-3 text-base font-medium hover:bg-gray-100"
+                  >
+                    {c.label}
+                  </Link>
+                ))}
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileOpen(false)}
+                    className="block rounded-xl px-4 py-3 text-base font-medium text-red-600 hover:bg-gray-100"
+                  >
+                    Admin
+                  </Link>
+                )}
+              </nav>
+
+              <div className="px-4 py-3 space-y-2">
+                {session ? (
+                  <Link
+                    to="/account"
+                    onClick={() => setMobileOpen(false)}
+                    className="block rounded-xl px-4 py-3 text-center bg-gray-100 font-semibold"
+                  >
+                    My Account
+                  </Link>
+                ) : (
+                  <div className="space-y-2">
+                    <Button asChild className="w-full">
+                      <Link to="/login" onClick={() => setMobileOpen(false)}>
+                        Login
+                      </Link>
+                    </Button>
+                    <Button variant="outline" asChild className="w-full">
+                      <Link to="/signup" onClick={() => setMobileOpen(false)}>
+                        Sign Up
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-auto p-4 border-t bg-white">
+                <Button
+                  variant='outline'
+                  className='gap-2 w-full'
+                  onClick={() => { setMobileOpen(false); onOpenCart(); }}
+                >
+                  <ShoppingCart size={18} /> Cart {cartCount > 0 && <Badge>{cartCount}</Badge>}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
