@@ -33,12 +33,17 @@ serve(async (req) => {
     )
 
     // Get data from frontend (NEW - includes userInfo and shippingCost)
-    const { cartItems, userInfo, shippingCost = 60 } = await req.json()
+    const { cartItems, userInfo, shippingCost = 60, discount = 0, promoCode = null, subtotal: providedSubtotal, total: providedTotal } = await req.json()
     
-    const subtotal = cartItems.reduce((total: number, item: any) => total + item.price * item.qty, 0)
-    const total_price = subtotal + shippingCost
+    const subtotal = providedSubtotal || cartItems.reduce((total: number, item: any) => total + item.price * item.qty, 0)
+    const total_price = providedTotal || (subtotal + shippingCost - discount)
     
-    const { data: orderData } = await supabaseAdmin.from('orders').insert({ total_price, user_id: user.id }).select().single()
+    const { data: orderData } = await supabaseAdmin.from('orders').insert({ 
+      total_price, 
+      user_id: user.id,
+      discount_amount: discount,
+      promo_code: promoCode?.code || null
+    }).select().single()
     const order_id = orderData.id
     const orderItemsToInsert = cartItems.map((item: any) => ({ order_id, product_id: item.id, quantity: item.qty, price: item.price }))
     await supabaseAdmin.from('order_items').insert(orderItemsToInsert)
@@ -55,7 +60,7 @@ serve(async (req) => {
     
     // Create detailed order items list
     const orderItemsList = cartItems.map((item: any) => 
-      `${item.name} ${item.size ? `(Size: ${item.size})` : ''} x${item.qty} - £${(item.price * item.qty).toFixed(2)}`
+      `${item.name} ${item.size ? `(Size: ${item.size})` : ''} x${item.qty} - EGP ${(item.price * item.qty).toFixed(2)}`
     ).join('<br>')
     
     // Email to Admin (using userInfo from frontend)
@@ -73,9 +78,10 @@ serve(async (req) => {
               <p><strong>Phone:</strong> ${userInfo.phone || 'Not provided'}</p>
               <p><strong>Address:</strong> ${userInfo.address || 'Not provided'}</p>
               
-              <p><strong>Subtotal:</strong> £${subtotal.toFixed(2)}</p>
-              <p><strong>Shipping:</strong> £${shippingCost.toFixed(2)}</p>
-              <p><strong>Order Total:</strong> £${total_price.toFixed(2)}</p>
+              <p><strong>Subtotal:</strong> EGP ${subtotal.toFixed(2)}</p>
+              ${discount > 0 ? `<p><strong>Discount${promoCode ? ` (${promoCode.code})` : ''}:</strong> -EGP ${discount.toFixed(2)}</p>` : ''}
+              <p><strong>Shipping:</strong> EGP ${shippingCost.toFixed(2)}</p>
+              <p><strong>Order Total:</strong> EGP ${total_price.toFixed(2)}</p>
               
               <h3>Items Ordered:</h3>
               <div>${orderItemsList}</div>
@@ -113,9 +119,10 @@ serve(async (req) => {
                   <div>${orderItemsList}</div>
                   
                   <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
-                  <p><strong>Subtotal:</strong> £${subtotal.toFixed(2)}</p>
-                  <p><strong>Shipping:</strong> £${shippingCost.toFixed(2)}</p>
-                  <p style="font-size: 18px;"><strong>Total:</strong> £${total_price.toFixed(2)}</p>
+                  <p><strong>Subtotal:</strong> EGP ${subtotal.toFixed(2)}</p>
+                  ${discount > 0 ? `<p><strong>Discount${promoCode ? ` (${promoCode.code})` : ''}:</strong> -EGP ${discount.toFixed(2)}</p>` : ''}
+                  <p><strong>Shipping:</strong> EGP ${shippingCost.toFixed(2)}</p>
+                  <p style="font-size: 18px;"><strong>Total:</strong> EGP ${total_price.toFixed(2)}</p>
                 </div>
                 
                 <p>We'll send you a shipping confirmation email with tracking information once your order is on its way.</p>

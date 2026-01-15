@@ -12,6 +12,10 @@ CREATE TABLE promo_codes (
   created_by VARCHAR(255)
 );
 
+-- Add promo code fields to orders table
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_code VARCHAR(50);
+
 -- Optional: Add RLS policies if needed
 -- ALTER TABLE promo_codes ENABLE ROW LEVEL SECURITY;
 -- CREATE POLICY "Allow authenticated users to read promo codes" ON promo_codes FOR SELECT USING (auth.role() = 'authenticated');

@@ -63,7 +63,7 @@ export default function App() {
   };
 
   // This is the updated handleCheckout function that includes user profile data
-  const handleCheckout = async () => {
+  const handleCheckout = async (appliedPromo = null) => {
     if (!session) {
       toast.error("Please log in to continue.");
       return;
@@ -89,11 +89,25 @@ export default function App() {
         profile = profileData[0];
       }
 
-      // Prepare the order data with both cart items and user info
+      // Calculate totals including promo discount
+      const subtotal = cartItems.reduce((sum, it) => sum + it.price * it.qty, 0);
       const shippingCost = cartItems.length > 0 ? 60 : 0;
+      const discount = appliedPromo ? (
+        appliedPromo.discount_type === 'percentage' 
+          ? subtotal * (appliedPromo.discount_value / 100)
+          : Math.min(appliedPromo.discount_value, subtotal)
+      ) : 0;
+      const discountedSubtotal = subtotal - discount;
+      const total = discountedSubtotal + shippingCost;
+
+      // Prepare the order data with both cart items and user info
       const orderData = {
         cartItems,
         shippingCost,
+        discount,
+        promoCode: appliedPromo,
+        subtotal,
+        total,
         userInfo: {
           email: session.user.email,
           full_name: profile?.full_name || session.user.email || 'Not provided',
@@ -111,6 +125,14 @@ export default function App() {
         console.error("Error from Edge Function:", error);
         toast.error("There was an issue placing your order. Please try again.");
       } else {
+        // Update promo code usage if applied
+        if (appliedPromo) {
+          await supabase
+            .from('promo_codes')
+            .update({ current_usages: appliedPromo.current_usages + 1 })
+            .eq('id', appliedPromo.id);
+        }
+
         toast.success("Order placed successfully! Please check your email.");
         setCartItems([]);
         setCartOpen(false);
