@@ -27,6 +27,13 @@ export default function AdminPage() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingDetails, setEditingDetails] = useState(null);
 
+  // Promo code states
+  const [promoCode, setPromoCode] = useState('');
+  const [discountType, setDiscountType] = useState('percentage');
+  const [discountValue, setDiscountValue] = useState('');
+  const [maxUsages, setMaxUsages] = useState('');
+  const [expirationDate, setExpirationDate] = useState('');
+
   // Password form
   const handleLogin = (e) => {
     e.preventDefault();
@@ -46,7 +53,7 @@ export default function AdminPage() {
       .select('*')
       // Removed: .eq('is_deleted', false)
       .order('id', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching products:', error);
       toast.error('Failed to load products');
@@ -63,13 +70,13 @@ export default function AdminPage() {
       const { data, error } = await supabase.storage
         .from('product_images')
         .upload(fileName, file);
-      
+
       if (error) throw error;
-      
+
       const { data: urlData } = supabase.storage
         .from('product_images')
         .getPublicUrl(fileName);
-      
+
       return urlData.publicUrl;
     });
 
@@ -85,17 +92,17 @@ export default function AdminPage() {
   // Add product with multiple images
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (imageFiles.length === 0) { 
-      toast.error("Please select at least one image."); 
-      return; 
+    if (imageFiles.length === 0) {
+      toast.error("Please select at least one image.");
+      return;
     }
-    
+
     setIsUploading(true);
 
     try {
       // Upload all images
       const imageUrls = await uploadImages(imageFiles);
-      
+
       // Prepare sizes array
       const available_sizes = sizes.split(',').map(s => s.trim()).filter(Boolean);
 
@@ -118,13 +125,13 @@ export default function AdminPage() {
       } else {
         toast.success('Product added successfully!');
         // Reset form
-        setName(''); 
-        setDescription(''); 
-        setPrice(''); 
-        setStock(''); 
-        setCategory('men'); 
+        setName('');
+        setDescription('');
+        setPrice('');
+        setStock('');
+        setCategory('men');
         setColor('');
-        setSizes(''); 
+        setSizes('');
         setImageFiles([]);
         e.target.reset();
         fetchProducts();
@@ -132,7 +139,7 @@ export default function AdminPage() {
     } catch (error) {
       toast.error('Error uploading images: ' + error.message);
     }
-    
+
     setIsUploading(false);
   };
 
@@ -161,7 +168,7 @@ export default function AdminPage() {
   const handleUpdateProduct = async (e) => {
     e.preventDefault();
     const product = editingDetails;
-    
+
     const available_sizes = product.sizes.split(',').map(s => s.trim()).filter(Boolean);
 
     const { error } = await supabase
@@ -190,7 +197,7 @@ export default function AdminPage() {
   const handleAddImageToProduct = async (productId, file) => {
     try {
       const [newImageUrl] = await uploadImages([file]);
-      
+
       // Get current product data
       const { data: product, error: fetchError } = await supabase
         .from('products')
@@ -207,7 +214,7 @@ export default function AdminPage() {
       // Update product with new image array
       const { error: updateError } = await supabase
         .from('products')
-        .update({ 
+        .update({
           image_urls: updatedImages,
           image_url: updatedImages[0] // Update main image if needed
         })
@@ -248,7 +255,7 @@ export default function AdminPage() {
       // Update product with new image array
       const { error: updateError } = await supabase
         .from('products')
-        .update({ 
+        .update({
           image_urls: updatedImages,
           image_url: updatedImages[0] // Update main image
         })
@@ -260,6 +267,30 @@ export default function AdminPage() {
       fetchProducts();
     } catch (error) {
       toast.error('Failed to remove image: ' + error.message);
+    }
+  };
+
+  // Create promo code
+  const handleCreatePromoCode = async (e) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase.from('promo_codes').insert([{
+        code: promoCode,
+        discount_type: discountType,
+        discount_value: parseFloat(discountValue),
+        max_usages: maxUsages ? parseInt(maxUsages) : null,
+        expiration_date: expirationDate || null,
+        is_active: true,
+      }]);
+      if (error) throw error;
+      toast.success('Promo code created!');
+      // Reset form
+      setPromoCode('');
+      setDiscountValue('');
+      setMaxUsages('');
+      setExpirationDate('');
+    } catch (error) {
+      toast.error('Error creating promo code: ' + error.message);
     }
   };
 
@@ -278,26 +309,32 @@ export default function AdminPage() {
   return (
     <div className="container max-w-6xl mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-      
+
       {/* Tab Navigation */}
       <div className="flex gap-4 mb-6">
         <button
           onClick={() => setActiveTab('add')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${
-            activeTab === 'add' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${activeTab === 'add' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
         >
           <Plus className="w-4 h-4" />
           Add Product
         </button>
         <button
           onClick={() => setActiveTab('manage')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${
-            activeTab === 'manage' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${activeTab === 'manage' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
         >
           <Package className="w-4 h-4" />
           Manage Products ({products.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('promo')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${activeTab === 'promo' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+        >
+          <Plus className="w-4 h-4" />
+          Promo Codes
         </button>
       </div>
 
@@ -349,13 +386,13 @@ export default function AdminPage() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Product Images (Multiple)</label>
-              <input 
-                type="file" 
-                accept="image/*" 
-                multiple 
-                onChange={handleFileChange} 
-                className="w-full p-2 border rounded" 
-                required 
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+                className="w-full p-2 border rounded"
+                required
               />
               {imageFiles.length > 0 && (
                 <p className="text-sm text-gray-600 mt-1">
@@ -397,8 +434,8 @@ export default function AdminPage() {
                     <div className="flex items-start gap-4">
                       {/* Main Product Info */}
                       <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                        <img 
-                          src={productImages[0] || 'https://via.placeholder.com/64'} 
+                        <img
+                          src={productImages[0] || 'https://via.placeholder.com/64'}
                           alt={product.name}
                           className="w-full h-full object-cover"
                         />
@@ -423,7 +460,7 @@ export default function AdminPage() {
                       {/* Actions */}
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setEditingDetails(editingDetails && editingDetails.id === product.id ? null : {...product, sizes: product.available_sizes ? product.available_sizes.join(', ') : ''})}
+                          onClick={() => setEditingDetails(editingDetails && editingDetails.id === product.id ? null : { ...product, sizes: product.available_sizes ? product.available_sizes.join(', ') : '' })}
                           className="bg-green-100 hover:bg-green-200 text-green-600 p-2 rounded-lg transition-colors"
                           title="Edit product details"
                         >
@@ -454,55 +491,55 @@ export default function AdminPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium mb-1">Product Name</label>
-                              <input 
-                                type="text" 
-                                value={editingDetails.name} 
-                                onChange={e => setEditingDetails({...editingDetails, name: e.target.value})} 
-                                className="w-full p-2 border rounded" 
-                                required 
+                              <input
+                                type="text"
+                                value={editingDetails.name}
+                                onChange={e => setEditingDetails({ ...editingDetails, name: e.target.value })}
+                                className="w-full p-2 border rounded"
+                                required
                               />
                             </div>
                             <div>
                               <label className="block text-sm font-medium mb-1">Price ($)</label>
-                              <input 
-                                type="number" 
-                                step="0.01" 
-                                value={editingDetails.price} 
-                                onChange={e => setEditingDetails({...editingDetails, price: e.target.value})} 
-                                className="w-full p-2 border rounded" 
-                                required 
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={editingDetails.price}
+                                onChange={e => setEditingDetails({ ...editingDetails, price: e.target.value })}
+                                className="w-full p-2 border rounded"
+                                required
                               />
                             </div>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium mb-1">Stock</label>
-                              <input 
-                                type="number" 
-                                value={editingDetails.stock} 
-                                onChange={e => setEditingDetails({...editingDetails, stock: e.target.value})} 
-                                className="w-full p-2 border rounded" 
-                                required 
+                              <input
+                                type="number"
+                                value={editingDetails.stock}
+                                onChange={e => setEditingDetails({ ...editingDetails, stock: e.target.value })}
+                                className="w-full p-2 border rounded"
+                                required
                               />
                             </div>
                             <div>
                               <label className="block text-sm font-medium mb-1">Color</label>
-                              <input 
-                                type="text" 
-                                value={editingDetails.color || ''} 
-                                onChange={e => setEditingDetails({...editingDetails, color: e.target.value})} 
-                                className="w-full p-2 border rounded" 
-                                placeholder="e.g. Red, Blue, Black" 
+                              <input
+                                type="text"
+                                value={editingDetails.color || ''}
+                                onChange={e => setEditingDetails({ ...editingDetails, color: e.target.value })}
+                                className="w-full p-2 border rounded"
+                                placeholder="e.g. Red, Blue, Black"
                               />
                             </div>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium mb-1">Category</label>
-                              <select 
-                                value={editingDetails.category} 
-                                onChange={e => setEditingDetails({...editingDetails, category: e.target.value})} 
-                                className="w-full p-2 border rounded bg-white" 
+                              <select
+                                value={editingDetails.category}
+                                onChange={e => setEditingDetails({ ...editingDetails, category: e.target.value })}
+                                className="w-full p-2 border rounded bg-white"
                                 required
                               >
                                 <option value="men">Men</option>
@@ -517,34 +554,34 @@ export default function AdminPage() {
                             </div>
                             <div>
                               <label className="block text-sm font-medium mb-1">Sizes (comma separated)</label>
-                              <input 
-                                type="text" 
-                                value={editingDetails.sizes || ''} 
-                                onChange={e => setEditingDetails({...editingDetails, sizes: e.target.value})} 
-                                className="w-full p-2 border rounded" 
-                                placeholder="e.g. 40,41,42,43" 
+                              <input
+                                type="text"
+                                value={editingDetails.sizes || ''}
+                                onChange={e => setEditingDetails({ ...editingDetails, sizes: e.target.value })}
+                                className="w-full p-2 border rounded"
+                                placeholder="e.g. 40,41,42,43"
                               />
                             </div>
                           </div>
                           <div>
                             <label className="block text-sm font-medium mb-1">Description</label>
-                            <textarea 
-                              value={editingDetails.description} 
-                              onChange={e => setEditingDetails({...editingDetails, description: e.target.value})} 
-                              className="w-full p-2 border rounded" 
+                            <textarea
+                              value={editingDetails.description}
+                              onChange={e => setEditingDetails({ ...editingDetails, description: e.target.value })}
+                              className="w-full p-2 border rounded"
                               rows="3"
                             ></textarea>
                           </div>
                           <div className="flex gap-2">
-                            <button 
-                              type="submit" 
+                            <button
+                              type="submit"
                               className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700"
                             >
                               Update Product
                             </button>
-                            <button 
-                              type="button" 
-                              onClick={() => setEditingDetails(null)} 
+                            <button
+                              type="button"
+                              onClick={() => setEditingDetails(null)}
                               className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-300"
                             >
                               Cancel
@@ -558,13 +595,13 @@ export default function AdminPage() {
                     {editingProduct === product.id && (
                       <div className="mt-4 pt-4 border-t">
                         <h4 className="font-medium mb-3">Product Images ({productImages.length})</h4>
-                        
+
                         {/* Current Images */}
                         <div className="grid grid-cols-4 gap-3 mb-4">
                           {productImages.map((imageUrl, index) => (
                             <div key={index} className="relative group">
-                              <img 
-                                src={imageUrl} 
+                              <img
+                                src={imageUrl}
                                 alt={`${product.name} ${index + 1}`}
                                 className="w-full h-24 object-cover rounded-lg border"
                               />
@@ -606,6 +643,77 @@ export default function AdminPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Promo Codes Tab */}
+      {activeTab === 'promo' && (
+        <div className="bg-gray-50 rounded-lg p-6">
+          <h2 className="text-xl font-bold mb-4">Create Promo Code</h2>
+          <form onSubmit={handleCreatePromoCode} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Promo Code</label>
+              <input
+                type="text"
+                placeholder="e.g., SUMMER20"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                className="w-full p-2 border rounded"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Discount Type</label>
+                <select
+                  value={discountType}
+                  onChange={(e) => setDiscountType(e.target.value)}
+                  className="w-full p-2 border rounded bg-white"
+                >
+                  <option value="percentage">Percentage Discount</option>
+                  <option value="fixed">Fixed Amount Discount</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Discount Value ({discountType === 'percentage' ? '%' : 'EGP'})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder={discountType === 'percentage' ? 'e.g., 20' : 'e.g., 50'}
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                  className="w-full p-2 border rounded"
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Max Usages (optional)</label>
+                <input
+                  type="number"
+                  placeholder="Leave empty for unlimited"
+                  value={maxUsages}
+                  onChange={(e) => setMaxUsages(e.target.value)}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Expiration Date (optional)</label>
+                <input
+                  type="datetime-local"
+                  value={expirationDate}
+                  onChange={(e) => setExpirationDate(e.target.value)}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+            </div>
+            <button type="submit" className="bg-black text-white px-8 py-3 rounded-lg text-lg font-bold hover:bg-black/90">
+              Create Promo Code
+            </button>
+          </form>
         </div>
       )}
     </div>
