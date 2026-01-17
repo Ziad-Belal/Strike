@@ -127,10 +127,15 @@ export default function App() {
       } else {
         // Update promo code usage if applied
         if (appliedPromo) {
-          await supabase
-            .from('promo_codes')
-            .update({ current_usages: appliedPromo.current_usages + 1 })
-            .eq('id', appliedPromo.id);
+          try {
+            await supabase
+              .from('promo_codes')
+              .update({ current_usages: appliedPromo.current_usages + 1 })
+              .eq('id', appliedPromo.id);
+          } catch (promoError) {
+            console.error("Error updating promo code usage:", promoError);
+            // Don't fail the entire checkout for promo code update errors
+          }
         }
 
         toast.success("Order placed successfully! Please check your email.");
