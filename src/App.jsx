@@ -89,6 +89,15 @@ export default function App() {
         profile = profileData[0];
       }
 
+      // Validate user contact info before proceeding
+      const phoneCandidate = (profile?.phone || profile?.phone_number || '').trim();
+      const addressCandidate = (profile?.address || profile?.address_line1 || '').trim();
+      const hasValidPhone = /^\+\d{1,3}\s*\d{6,15}$/.test(phoneCandidate);
+      if (!hasValidPhone || !addressCandidate) {
+        toast.error("Please complete your profile with a valid phone and address.");
+        return;
+      }
+
       // Calculate totals including promo discount
       const subtotal = cartItems.reduce((sum, it) => sum + it.price * it.qty, 0);
       const shippingCost = cartItems.length > 0 ? 60 : 0;
@@ -110,9 +119,9 @@ export default function App() {
         total,
         userInfo: {
           email: session.user.email,
-          full_name: profile?.full_name || session.user.email || 'Not provided',
-          phone: profile?.phone || profile?.phone_number || 'Not provided',
-          address: profile?.address || profile?.address_line1 || 'Not provided'
+          full_name: profile?.full_name || session.user.email,
+          phone: phoneCandidate,
+          address: addressCandidate
         }
       };
 

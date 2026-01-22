@@ -12,6 +12,7 @@ export default function AccountPage() {
   
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [countryCode, setCountryCode] = useState('+20');
   const [address, setAddress] = useState('');
 
   // --- THIS IS THE CORRECT, MODERN WAY TO GET THE USER ---
@@ -38,7 +39,18 @@ export default function AccountPage() {
           setProfile(profile);
           setFullName(profile.full_name || '');
           // Handle both column name variations
-          setPhoneNumber(profile.phone || profile.phone_number || '');
+          const existingPhone = profile.phone || profile.phone_number || '';
+          if (existingPhone?.startsWith('+')) {
+            const match = existingPhone.match(/^(\+\d+)\s*(.*)$/);
+            if (match) {
+              setCountryCode(match[1]);
+              setPhoneNumber(match[2]?.replace(/\s+/g, '') || '');
+            } else {
+              setPhoneNumber(existingPhone);
+            }
+          } else {
+            setPhoneNumber(existingPhone);
+          }
           setAddress(profile.address || profile.address_line1 || '');
         }
       }
@@ -48,16 +60,34 @@ export default function AccountPage() {
   }, []); // The empty array ensures this runs only once when the page loads
   // --- END CORRECTION ---
 
+  const isValidPhone = (cc, local) => {
+    if (!cc || !cc.startsWith('+')) return false;
+    const digits = (local || '').replace(/\D/g, '');
+    return digits.length >= 6 && digits.length <= 15;
+  };
+
   const handleUpdateProfile = async () => {
     if (!user) return;
+    if (!fullName.trim()) {
+      toast.error('Please enter your full name.');
+      return;
+    }
+    if (!isValidPhone(countryCode, phoneNumber)) {
+      toast.error('Please enter a valid phone number.');
+      return;
+    }
+    if (!address.trim()) {
+      toast.error('Please enter your address.');
+      return;
+    }
     
     // Update with both column name variations for compatibility
     const { error } = await supabase.from('profiles').upsert({
       id: user.id, // Include ID for upsert
       full_name: fullName,
-      phone: phoneNumber,
+      phone: `${countryCode} ${phoneNumber}`,
       address: address,
-      phone_number: phoneNumber, // Include both variations
+      phone_number: `${countryCode} ${phoneNumber}`, // Include both variations
       address_line1: address,
     });
 
@@ -112,14 +142,27 @@ export default function AccountPage() {
                 className="w-full p-3 border rounded-lg" 
                 required 
               />
-              <input 
-                type="tel" 
-                placeholder="Phone Number" 
-                value={phoneNumber} 
-                onChange={(e) => setPhoneNumber(e.target.value)} 
-                className="w-full p-3 border rounded-lg" 
-                required 
-              />
+              <div className="flex gap-2">
+                <select
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  className="w-28 p-3 border rounded-lg bg-white"
+                >
+                  <option value="+20">+20</option>
+                  <option value="+1">+1</option>
+                  <option value="+44">+44</option>
+                  <option value="+971">+971</option>
+                  <option value="+33">+33</option>
+                </select>
+                <input 
+                  type="tel" 
+                  placeholder="Phone Number" 
+                  value={phoneNumber} 
+                  onChange={(e) => setPhoneNumber(e.target.value)} 
+                  className="flex-1 p-3 border rounded-lg" 
+                  required 
+                />
+              </div>
               <input 
                 type="text" 
                 placeholder="Home Address" 
@@ -162,7 +205,20 @@ export default function AccountPage() {
         </div>
         <div>
           <label className="text-sm font-medium text-gray-600">Phone Number</label>
-          <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} className="w-full p-2 border rounded mt-1" />
+          <div className="flex gap-2 mt-1">
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              className="w-28 p-2 border rounded bg-white"
+            >
+              <option value="+20">+20</option>
+              <option value="+1">+1</option>
+              <option value="+44">+44</option>
+              <option value="+971">+971</option>
+              <option value="+33">+33</option>
+            </select>
+            <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} className="flex-1 p-2 border rounded" />
+          </div>
         </div>
         <div>
           <label className="text-sm font-medium text-gray-600">Address</label>
