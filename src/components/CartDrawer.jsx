@@ -107,8 +107,8 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
                 className='h-20 w-20 rounded-xl object-cover'
               />
               <div className='flex-1'>
-                <div className='font-medium'>{it.name}</div>
-                <div className='text-sm'>EU {it.size} • Qty {it.qty}</div>
+                <div className='font-medium'>{it.name || 'Product'}</div>
+                <div className='text-sm'>{it.size ? `Size: ${it.size} • ` : ''}Qty: {it.qty}</div>
               </div>
               <div className='text-right'>
                 <div className='font-semibold'>{currency(it.price * it.qty)}</div>

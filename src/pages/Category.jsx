@@ -39,17 +39,17 @@ export default function Category({ category }) {
         setProducts([])
       } else {
         // Apply client-side filtering for size and color
-        let filteredProducts = data || []
+        let filteredProducts = (data || []).filter(product => product && !product.is_deleted)
         
         if (filters?.size) {
           filteredProducts = filteredProducts.filter(product => 
-            product.available_sizes && product.available_sizes.includes(filters.size)
+            product.available_sizes && Array.isArray(product.available_sizes) && product.available_sizes.includes(filters.size)
           )
         }
         
         if (filters?.color) {
           filteredProducts = filteredProducts.filter(product => 
-            product.color && product.color.toLowerCase().includes(filters.color.toLowerCase())
+            product.color && typeof product.color === 'string' && product.color.toLowerCase().includes(filters.color.toLowerCase())
           )
         }
         

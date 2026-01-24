@@ -15,12 +15,23 @@ import AdminPage from './pages/AdminPage.jsx';
 import SlideshowManagement from './pages/SlideshowManagement.jsx'; // <-- Add this import at the top
 import SupabaseTest from './components/SupabaseTest.jsx';
 import FixProfiles from './components/FixProfiles.jsx';
+import AboutPage from './pages/AboutPage.jsx';
+import ContactUs from './pages/ContactUs.jsx';
+import VisionMissionPage from './pages/VisionMissionPage.jsx';
 import { supabase } from './supabase';
 import { Toaster, toast } from 'react-hot-toast';
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [cartItems, setCartItems] = useState([]);
+  // Load cart from localStorage on mount
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('strike_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
@@ -47,10 +58,16 @@ export default function App() {
     }
     setCartItems(prev => {
         const existing = prev.find(i => i.id === product.id && i.size === size);
-        if (existing) {
-            return prev.map(i => i.id === product.id && i.size === size ? { ...i, qty: i.qty + qty } : i);
+        const newCart = existing
+            ? prev.map(i => i.id === product.id && i.size === size ? { ...i, qty: i.qty + qty } : i)
+            : [...prev, { ...product, size, qty }];
+        // Save to localStorage
+        try {
+          localStorage.setItem('strike_cart', JSON.stringify(newCart));
+        } catch (e) {
+          console.error('Failed to save cart to localStorage:', e);
         }
-        return [...prev, { ...product, size, qty }];
+        return newCart;
     });
     setCartOpen(true);
     toast.success(`${product.name} added to cart!`);
@@ -58,7 +75,16 @@ export default function App() {
 
   // This is the full, working removeItem function.
   const removeItem = (productToRemove) => {
-    setCartItems(prev => prev.filter(i => !(i.id === productToRemove.id && i.size === productToRemove.size)));
+    setCartItems(prev => {
+      const newCart = prev.filter(i => !(i.id === productToRemove.id && i.size === productToRemove.size));
+      // Save to localStorage
+      try {
+        localStorage.setItem('strike_cart', JSON.stringify(newCart));
+      } catch (e) {
+        console.error('Failed to save cart to localStorage:', e);
+      }
+      return newCart;
+    });
     toast.success(`${productToRemove.name} removed from cart.`);
   };
 
@@ -90,11 +116,13 @@ export default function App() {
       }
 
       // Validate user contact info before proceeding
-      const phoneCandidate = (profile?.phone || profile?.phone_number || '').trim();
-      const addressCandidate = (profile?.address || profile?.address_line1 || '').trim();
-      const hasValidPhone = /^\+\d{1,3}\s*\d{6,15}$/.test(phoneCandidate);
+      const phoneCandidate = (profile?.phone || '').trim();
+      const addressCandidate = (profile?.address || '').trim();
+      // Clean phone to get only digits
+      const cleanPhone = phoneCandidate.replace(/\D/g, '');
+      const hasValidPhone = cleanPhone.length >= 6 && cleanPhone.length <= 15;
       if (!hasValidPhone || !addressCandidate) {
-        toast.error("Please complete your profile with a valid phone and address.");
+        toast.error("Please complete your profile with a valid phone (6-15 digits) and address.");
         return;
       }
 
@@ -120,7 +148,7 @@ export default function App() {
         userInfo: {
           email: session.user.email,
           full_name: profile?.full_name || session.user.email,
-          phone: phoneCandidate,
+          phone: cleanPhone, // Use cleaned phone number (digits only)
           address: addressCandidate
         }
       };
@@ -132,7 +160,19 @@ export default function App() {
 
       if (error) {
         console.error("Error from Edge Function:", error);
-        toast.error("There was an issue placing your order. Please try again.");
+        console.error("Error details:", {
+          message: error.message,
+          context: error.context,
+          status: error.status
+        });
+        
+        // Try to get more details from the response
+        let errorMessage = "There was an issue placing your order. Please try again.";
+        if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        toast.error(errorMessage);
       } else {
         // Update promo code usage if applied
         if (appliedPromo) {
@@ -149,6 +189,12 @@ export default function App() {
 
         toast.success("Order placed successfully! Please check your email.");
         setCartItems([]);
+        // Clear cart from localStorage
+        try {
+          localStorage.removeItem('strike_cart');
+        } catch (e) {
+          console.error('Failed to clear cart from localStorage:', e);
+        }
         setCartOpen(false);
       }
     } catch (error) {
@@ -176,6 +222,9 @@ export default function App() {
         <Route path='/slideshow' element={<SlideshowManagement />} />
         <Route path='/test-supabase' element={<SupabaseTest />} />
         <Route path='/fix-profile' element={<FixProfiles />} />
+        <Route path='/about' element={<AboutPage />} />
+        <Route path='/contact' element={<ContactUs />} />
+        <Route path='/vision-mission' element={<VisionMissionPage />} />
         <Route path='*' element={<Navigate to='/' replace />} />
       </Routes>
       <Footer />

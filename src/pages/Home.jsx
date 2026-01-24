@@ -18,13 +18,16 @@ export default function Home() {
       const { data, error } = await supabase
         .from('products')
         .select('*')
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
         .limit(8) // Let's get the 8 most recent products for the homepage for now
 
       if (error) {
         console.error('Error fetching products:', error)
+        setProducts([])
       } else {
-        // 4. Update the state with the fetched data
-        setProducts(data)
+        // 4. Update the state with the fetched data (filter out any null/undefined)
+        setProducts((data || []).filter(p => p && !p.is_deleted))
       }
       setLoading(false) // Stop loading
     }

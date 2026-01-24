@@ -17,18 +17,33 @@ export default function SignUp() {
     e.preventDefault();
     setLoading(true);
 
+    // Validate phone number format - only digits, 6-15 digits
+    const cleanPhone = phoneNumber.replace(/\D/g, ''); // Remove all non-digits
+    if (cleanPhone.length < 6 || cleanPhone.length > 15) {
+      toast.error('Please enter a valid phone number (6-15 digits)');
+      setLoading(false);
+      return;
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
     try {
       // Sign up user
       const { data, error } = await supabase.auth.signUp({
         email, 
         password,
-        options: {
-          data: {
-            full_name: fullName,
-            phone_number: phoneNumber,
-            address_line1: address,
+          options: {
+            data: {
+              full_name: fullName,
+              phone: cleanPhone,
+              address: address,
+            }
           }
-        }
       });
 
       if (error) {
@@ -40,15 +55,13 @@ export default function SignUp() {
       // Create profile row in 'profiles' table
       const user = data?.user;
       if (user) {
-        // Try multiple column name variations to ensure compatibility
+        // Create profile with the correct column names
         const { error: profileError } = await supabase.from('profiles').insert([
           {
             id: user.id,
             full_name: fullName,
-            phone_number: phoneNumber,
-            phone: phoneNumber, // Add both variations
-            address_line1: address,
-            address: address, // Add both variations
+            phone: cleanPhone,
+            address: address,
           }
         ]);
         if (profileError) {

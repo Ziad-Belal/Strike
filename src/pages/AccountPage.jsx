@@ -12,7 +12,6 @@ export default function AccountPage() {
   
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [countryCode, setCountryCode] = useState('+20');
   const [address, setAddress] = useState('');
 
   // --- THIS IS THE CORRECT, MODERN WAY TO GET THE USER ---
@@ -38,20 +37,11 @@ export default function AccountPage() {
           const profile = profileData[0];
           setProfile(profile);
           setFullName(profile.full_name || '');
-          // Handle both column name variations
-          const existingPhone = profile.phone || profile.phone_number || '';
-          if (existingPhone?.startsWith('+')) {
-            const match = existingPhone.match(/^(\+\d+)\s*(.*)$/);
-            if (match) {
-              setCountryCode(match[1]);
-              setPhoneNumber(match[2]?.replace(/\s+/g, '') || '');
-            } else {
-              setPhoneNumber(existingPhone);
-            }
-          } else {
-            setPhoneNumber(existingPhone);
-          }
-          setAddress(profile.address || profile.address_line1 || '');
+          // Extract phone number and clean it (remove all non-digits)
+          const existingPhone = profile.phone || '';
+          const cleanPhone = existingPhone.replace(/\D/g, '');
+          setPhoneNumber(cleanPhone);
+          setAddress(profile.address || '');
         }
       }
       setLoading(false);
@@ -60,9 +50,9 @@ export default function AccountPage() {
   }, []); // The empty array ensures this runs only once when the page loads
   // --- END CORRECTION ---
 
-  const isValidPhone = (cc, local) => {
-    if (!cc || !cc.startsWith('+')) return false;
-    const digits = (local || '').replace(/\D/g, '');
+  const isValidPhone = (phone) => {
+    if (!phone) return false;
+    const digits = phone.replace(/\D/g, '');
     return digits.length >= 6 && digits.length <= 15;
   };
 
@@ -72,8 +62,11 @@ export default function AccountPage() {
       toast.error('Please enter your full name.');
       return;
     }
-    if (!isValidPhone(countryCode, phoneNumber)) {
-      toast.error('Please enter a valid phone number.');
+    
+    // Clean phone number - remove all non-digits
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    if (!isValidPhone(cleanPhone)) {
+      toast.error('Please enter a valid phone number (6-15 digits).');
       return;
     }
     if (!address.trim()) {
@@ -81,29 +74,86 @@ export default function AccountPage() {
       return;
     }
     
-    // Update with both column name variations for compatibility
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id, // Include ID for upsert
-      full_name: fullName,
-      phone: `${countryCode} ${phoneNumber}`,
-      address: address,
-      phone_number: `${countryCode} ${phoneNumber}`, // Include both variations
-      address_line1: address,
-    });
+    try {
+      // First try to update existing profile
+      const { data: updateData, error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName.trim(),
+          phone: cleanPhone,
+          address: address.trim(),
+        })
+        .eq('id', user.id)
+        .select();
 
-    if (error) {
-      console.error('Update error:', error);
-      toast.error('Failed to update profile.');
-    } else {
-      toast.success('Profile updated successfully!');
-      // Refresh the profile data
-      const { data: updatedProfileData } = await supabase
+      // If update returns no rows, the profile doesn't exist, so insert it
+      if (updateError || !updateData || updateData.length === 0) {
+        const { data: insertData, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: fullName.trim(),
+            phone: cleanPhone,
+            address: address.trim(),
+          })
+          .select();
+
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          console.error('Error details:', {
+            code: insertError.code,
+            message: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint
+          });
+          toast.error(`Failed to create profile: ${insertError.message || 'Unknown error'}`);
+          return;
+        }
+
+        // Successfully inserted
+        if (insertData && insertData.length > 0) {
+          setProfile(insertData[0]);
+          setFullName(insertData[0].full_name || '');
+          const existingPhone = insertData[0].phone || '';
+          setPhoneNumber(existingPhone.replace(/\D/g, ''));
+          setAddress(insertData[0].address || '');
+          toast.success('Profile created successfully!');
+          return;
+        }
+      }
+
+      // Update was successful
+      if (updateData && updateData.length > 0) {
+        setProfile(updateData[0]);
+        setFullName(updateData[0].full_name || '');
+          const existingPhone = updateData[0].phone || '';
+          setPhoneNumber(existingPhone.replace(/\D/g, ''));
+        setAddress(updateData[0].address || '');
+        toast.success('Profile updated successfully!');
+        return;
+      }
+
+      // Fallback: fetch the profile
+      const { data: fetchedData } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id);
-      if (updatedProfileData && updatedProfileData.length > 0) {
-        setProfile(updatedProfileData[0]);
+        .eq('id', user.id)
+        .single();
+      
+      if (fetchedData) {
+        setProfile(fetchedData);
+        setFullName(fetchedData.full_name || '');
+          const existingPhone = fetchedData.phone || '';
+          setPhoneNumber(existingPhone.replace(/\D/g, ''));
+        setAddress(fetchedData.address || '');
+        toast.success('Profile updated successfully!');
+      } else {
+        toast.error('Profile update completed but could not verify. Please refresh the page.');
       }
+
+    } catch (err) {
+      console.error('Unexpected error during profile update:', err);
+      toast.error(`Unexpected error: ${err.message || 'Please try again'}`);
     }
   };
   
@@ -142,27 +192,14 @@ export default function AccountPage() {
                 className="w-full p-3 border rounded-lg" 
                 required 
               />
-              <div className="flex gap-2">
-                <select
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  className="w-28 p-3 border rounded-lg bg-white"
-                >
-                  <option value="+20">+20</option>
-                  <option value="+1">+1</option>
-                  <option value="+44">+44</option>
-                  <option value="+971">+971</option>
-                  <option value="+33">+33</option>
-                </select>
-                <input 
-                  type="tel" 
-                  placeholder="Phone Number" 
-                  value={phoneNumber} 
-                  onChange={(e) => setPhoneNumber(e.target.value)} 
-                  className="flex-1 p-3 border rounded-lg" 
-                  required 
-                />
-              </div>
+              <input 
+                type="tel" 
+                placeholder="Phone Number (e.g., 01023286497)" 
+                value={phoneNumber} 
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))} 
+                className="w-full p-3 border rounded-lg" 
+                required 
+              />
               <input 
                 type="text" 
                 placeholder="Home Address" 
@@ -205,20 +242,13 @@ export default function AccountPage() {
         </div>
         <div>
           <label className="text-sm font-medium text-gray-600">Phone Number</label>
-          <div className="flex gap-2 mt-1">
-            <select
-              value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value)}
-              className="w-28 p-2 border rounded bg-white"
-            >
-              <option value="+20">+20</option>
-              <option value="+1">+1</option>
-              <option value="+44">+44</option>
-              <option value="+971">+971</option>
-              <option value="+33">+33</option>
-            </select>
-            <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} className="flex-1 p-2 border rounded" />
-          </div>
+          <input 
+            type="tel" 
+            value={phoneNumber} 
+            onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ''))} 
+            placeholder="e.g., 01023286497"
+            className="w-full p-2 border rounded mt-1" 
+          />
         </div>
         <div>
           <label className="text-sm font-medium text-gray-600">Address</label>

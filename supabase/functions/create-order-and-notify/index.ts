@@ -84,13 +84,17 @@ serve(async (req) => {
       console.log('First cart item:', cartItems[0])
     }
     
-    // For now, just create the order and return success
-    // We'll handle the rest later
-    console.log('Creating order with minimal data...')
+    // Calculate subtotal and total if not provided
+    const subtotal = providedSubtotal || cartItems.reduce((sum: number, item: any) => sum + (item.price * item.qty), 0)
+    const total = providedTotal || (subtotal - discount + shippingCost)
+    
+    console.log('Creating order with calculated totals...')
     
     const orderInsertData: any = { 
-      total_price: providedTotal || (subtotal + shippingCost - discount), 
-      user_id: user.id
+      total_price: total,
+      user_id: user.id,
+      discount_amount: discount || 0,
+      promo_code: promoCode?.code || null
     }
     
     console.log('Order insert data:', orderInsertData)
@@ -98,17 +102,100 @@ serve(async (req) => {
     const { data: orderData, error: orderError } = await supabaseAdmin.from('orders').insert(orderInsertData).select().single()
     
     if (orderError) {
-      console.error('Order insert error:', orderError)
-      throw new Error(`Failed to create order: ${orderError.message}`)
+      console.error('Order insert error:', orderError);
+      console.error('Order insert error details:', {
+        code: orderError.code,
+        message: orderError.message,
+        details: orderError.details,
+        hint: orderError.hint
+      });
+      console.error('Order data attempted:', JSON.stringify(orderInsertData, null, 2));
+      throw new Error(`Failed to create order: ${orderError.message || 'Unknown database error'}`)
     }
     
     const order_id = orderData.id
     console.log('Order created successfully with ID:', order_id)
     
-    // Skip order items and stock updates for now
-    console.log('Skipping order items and stock updates for debugging')
+    // Create order items and update stock
+    console.log('Creating order items and updating stock...')
+    const orderItems = []
+    
+    for (const item of cartItems) {
+      // Validate item data
+      if (!item.id || !item.qty || !item.price) {
+        console.error('Invalid cart item:', item)
+        continue
+      }
+      
+      // Handle product ID - could be integer or string
+      let productId: number;
+      if (typeof item.id === 'string') {
+        // Try to parse as integer
+        const parsed = parseInt(item.id, 10);
+        if (isNaN(parsed)) {
+          console.error(`Invalid product ID format: ${item.id}`, item);
+          continue;
+        }
+        productId = parsed;
+      } else {
+        productId = item.id;
+      }
+      
+      // Create order item (note: size is stored in a separate column if your schema supports it, otherwise omit)
+      const { error: itemError } = await supabaseAdmin.from('order_items').insert({
+        order_id: order_id,
+        product_id: productId,
+        quantity: parseInt(item.qty),
+        price: parseFloat(item.price)
+        // Note: If your order_items table has a 'size' column, uncomment the line below:
+        // size: item.size || null
+      })
+      
+      if (itemError) {
+        console.error('Error creating order item:', itemError);
+        console.error('Item that failed:', JSON.stringify(item, null, 2));
+        console.error('Error details:', {
+          code: itemError.code,
+          message: itemError.message,
+          details: itemError.details,
+          hint: itemError.hint
+        });
+        // Continue with other items even if one fails, but log the error
+      } else {
+        orderItems.push(item)
+      }
+      
+      // Update product stock (decrease by quantity ordered)
+      if (productId) {
+        const { data: productData, error: productError } = await supabaseAdmin
+          .from('products')
+          .select('stock')
+          .eq('id', productId)
+          .single()
+        
+        if (productError) {
+          console.error(`Error fetching product ${productId} for stock update:`, productError);
+        } else if (productData) {
+          const newStock = Math.max(0, (productData.stock || 0) - parseInt(item.qty));
+          const { error: updateStockError } = await supabaseAdmin
+            .from('products')
+            .update({ stock: newStock })
+            .eq('id', productId);
+          
+          if (updateStockError) {
+            console.error(`Error updating stock for product ${productId}:`, updateStockError);
+          }
+        }
+      }
+    }
+    
+    console.log(`Created ${orderItems.length} order items`)
     
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
+    
+    if (!resendApiKey) {
+      console.warn('RESEND_API_KEY not set - emails will not be sent')
+    }
     
     // Create detailed order items list
     const orderItemsList = cartItems.map((item: any) => 
@@ -116,9 +203,10 @@ serve(async (req) => {
     ).join('<br>')
     
     // Send emails (don't fail the order if emails fail)
-    try {
-      // Email to Admin (using userInfo from frontend)
-      const adminEmailResponse = await fetch('https://api.resend.com/emails', {
+    if (resendApiKey) {
+      try {
+        // Email to Admin (using userInfo from frontend)
+        const adminEmailResponse = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
           body: JSON.stringify({
@@ -135,7 +223,7 @@ serve(async (req) => {
                 <p><strong>Subtotal:</strong> EGP ${subtotal.toFixed(2)}</p>
                 ${discount > 0 ? `<p><strong>Discount${promoCode ? ` (${promoCode.code})` : ''}:</strong> -EGP ${discount.toFixed(2)}</p>` : ''}
                 <p><strong>Shipping:</strong> EGP ${shippingCost.toFixed(2)}</p>
-                <p><strong>Order Total:</strong> EGP ${total_price.toFixed(2)}</p>
+                <p><strong>Order Total:</strong> EGP ${total.toFixed(2)}</p>
                 
                 <h3>Items Ordered:</h3>
                 <div>${orderItemsList}</div>
@@ -176,7 +264,7 @@ serve(async (req) => {
                     <p><strong>Subtotal:</strong> EGP ${subtotal.toFixed(2)}</p>
                     ${discount > 0 ? `<p><strong>Discount${promoCode ? ` (${promoCode.code})` : ''}:</strong> -EGP ${discount.toFixed(2)}</p>` : ''}
                     <p><strong>Shipping:</strong> EGP ${shippingCost.toFixed(2)}</p>
-                    <p style="font-size: 18px;"><strong>Total:</strong> EGP ${total_price.toFixed(2)}</p>
+                    <p style="font-size: 18px;"><strong>Total:</strong> EGP ${total.toFixed(2)}</p>
                   </div>
                   
                   <p>We'll send you a shipping confirmation email with tracking information once your order is on its way.</p>
@@ -191,12 +279,15 @@ serve(async (req) => {
           })
       });
       
-      if (!customerEmailResponse.ok) {
-        console.error('Failed to send customer email:', await customerEmailResponse.text());
+        if (!customerEmailResponse.ok) {
+          console.error('Failed to send customer email:', await customerEmailResponse.text());
+        }
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        // Don't fail the order if emails fail
       }
-    } catch (emailError) {
-      console.error('Email sending failed:', emailError);
-      // Don't fail the order if emails fail
+    } else {
+      console.warn('RESEND_API_KEY not configured - skipping email notifications')
     }
 
     return new Response(JSON.stringify({ success: true }), { 
@@ -204,7 +295,16 @@ serve(async (req) => {
       status: 200 
     })
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { 
+    console.error('Edge Function error:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      details: error instanceof Error ? {
+        name: error.name,
+        message: error.message
+      } : null
+    }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
       status: 500 
     })

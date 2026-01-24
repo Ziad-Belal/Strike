@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-hot-toast';
-import { Trash2, Plus, Package, Upload, X, Image as ImageIcon, Edit } from 'lucide-react';
+import { Trash2, Plus, Package, Upload, X, Image as ImageIcon, Edit, RotateCcw } from 'lucide-react';
 
 const ADMIN_PASSWORD = "StrikeSports";
 
@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingDetails, setEditingDetails] = useState(null);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   // Promo code states
   const [promoCode, setPromoCode] = useState('');
@@ -149,18 +150,114 @@ export default function AdminPage() {
       return;
     }
 
-    // Instead of deleting, mark as deleted
-    const { error } = await supabase
-      .from('products')
-      .update({ is_deleted: true })
-      .eq('id', productId);
+    // Validate productId
+    if (!productId) {
+      toast.error('Invalid product ID');
+      console.error('Product ID is missing:', productId);
+      return;
+    }
 
-    if (error) {
-      console.error('Error removing product:', error);
-      toast.error('Failed to remove product');
-    } else {
-      toast.success(`"${productName}" has been removed from store`);
-      fetchProducts(); // Refresh the list
+    try {
+      // First, check if the product exists and get its current state
+      const { data: productData, error: fetchError } = await supabase
+        .from('products')
+        .select('id, is_deleted')
+        .eq('id', productId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching product:', fetchError);
+        toast.error(`Failed to find product: ${fetchError.message}`);
+        return;
+      }
+
+      if (!productData) {
+        toast.error('Product not found');
+        return;
+      }
+
+      // Check if already deleted
+      if (productData.is_deleted === true) {
+        toast.error('Product is already deleted');
+        fetchProducts(); // Refresh to update UI
+        return;
+      }
+
+      // Instead of deleting, mark as deleted
+      const { data, error } = await supabase
+        .from('products')
+        .update({ is_deleted: true })
+        .eq('id', productId)
+        .select();
+
+      if (error) {
+        console.error('Error removing product:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // Provide more specific error messages
+        if (error.code === 'PGRST116') {
+          toast.error('Product not found or you do not have permission to delete it');
+        } else if (error.message?.includes('permission') || error.message?.includes('policy')) {
+          toast.error('Permission denied. Check your database policies.');
+        } else if (error.message?.includes('column') && error.message?.includes('is_deleted')) {
+          toast.error('Database error: is_deleted column may not exist. Please add it to your products table.');
+        } else {
+          toast.error(`Failed to remove product: ${error.message || 'Unknown error'}`);
+        }
+      } else {
+        // Verify the update worked
+        if (data && data.length > 0) {
+          toast.success(`"${productName}" has been removed from store`);
+          fetchProducts(); // Refresh the list
+        } else {
+          toast.error('Product update returned no data. The product may not exist.');
+          fetchProducts(); // Refresh anyway
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error during deletion:', err);
+      toast.error(`Unexpected error: ${err.message || 'Please try again'}`);
+    }
+  };
+
+  // Restore deleted product
+  const handleRestoreProduct = async (productId, productName) => {
+    if (!confirm(`Are you sure you want to restore "${productName}"?`)) {
+      return;
+    }
+
+    if (!productId) {
+      toast.error('Invalid product ID');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .update({ is_deleted: false })
+        .eq('id', productId)
+        .select();
+
+      if (error) {
+        console.error('Error restoring product:', error);
+        toast.error(`Failed to restore product: ${error.message || 'Unknown error'}`);
+      } else {
+        if (data && data.length > 0) {
+          toast.success(`"${productName}" has been restored`);
+          fetchProducts(); // Refresh the list
+        } else {
+          toast.error('Product restore returned no data');
+          fetchProducts();
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error during restore:', err);
+      toast.error(`Unexpected error: ${err.message || 'Please try again'}`);
     }
   };
 
@@ -412,13 +509,24 @@ export default function AdminPage() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">Manage Products</h2>
-            <button
-              onClick={fetchProducts}
-              className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg font-medium"
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : 'Refresh'}
-            </button>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showDeleted}
+                  onChange={(e) => setShowDeleted(e.target.checked)}
+                  className="rounded"
+                />
+                Show deleted products
+              </label>
+              <button
+                onClick={fetchProducts}
+                className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg font-medium"
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -427,10 +535,17 @@ export default function AdminPage() {
             <div className="text-center py-8 text-gray-500">No products found</div>
           ) : (
             <div className="grid gap-4">
-              {products.map(product => {
+              {products
+                .filter(product => showDeleted || !product.is_deleted)
+                .map(product => {
                 const productImages = product.image_urls || [product.image_url].filter(Boolean);
                 return (
-                  <div key={product.id} className="bg-white border rounded-lg p-4">
+                  <div key={product.id} className={`bg-white border rounded-lg p-4 ${product.is_deleted ? 'opacity-60 bg-gray-50' : ''}`}>
+                    {product.is_deleted && (
+                      <div className="mb-2 px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded inline-block">
+                        DELETED
+                      </div>
+                    )}
                     <div className="flex items-start gap-4">
                       {/* Main Product Info */}
                       <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
@@ -473,13 +588,23 @@ export default function AdminPage() {
                         >
                           <ImageIcon className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteProduct(product.id, product.name)}
-                          className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-colors"
-                          title="Remove product"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {product.is_deleted ? (
+                          <button
+                            onClick={() => handleRestoreProduct(product.id, product.name)}
+                            className="bg-green-100 hover:bg-green-200 text-green-600 p-2 rounded-lg transition-colors"
+                            title="Restore product"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleDeleteProduct(product.id, product.name)}
+                            className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-colors"
+                            title="Remove product"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
