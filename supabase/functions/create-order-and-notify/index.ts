@@ -2,42 +2,44 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://strike-bb61c.web.app',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Credentials': 'true',
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') { 
-    return new Response('ok', { headers: corsHeaders }) 
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '', 
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '', 
-      { 
-        global: { 
-          headers: { 
-            Authorization: req.headers.get('Authorization')! 
-          } 
-        } 
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            Authorization: req.headers.get('Authorization')!
+          }
+        }
       }
     )
-    
+
     console.log('Auth header present:', !!req.headers.get('Authorization'))
-    
+
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
+
     if (userError) {
       console.error('User auth error:', userError)
       throw new Error(`Authentication error: ${userError.message}`)
     }
-    
+
     if (!user) {
       console.error('No user found')
       throw new Error("User not found.")
     }
-    
+
     console.log('User authenticated:', user.id)
 
     const supabaseAdmin = createClient(
@@ -50,18 +52,24 @@ serve(async (req) => {
         }
       }
     )
-    
+
     console.log('Supabase admin client created')
 
-    // Get data from frontend (NEW - includes userInfo and shippingCost)
+    // Get data from frontend (accepts both `items` and `cartItems`)
     const requestData = await req.json()
     console.log('Raw request data keys:', Object.keys(requestData))
     console.log('Raw request data:', JSON.stringify(requestData, null, 2))
-    
-    const { cartItems, userInfo, shippingCost = 60, discount = 0, promoCode = null, subtotal: providedSubtotal, total: providedTotal } = requestData
-    
+
+    const items = requestData.items ?? requestData.cartItems ?? []
+    const userInfo = requestData.userInfo
+    const shippingCost = requestData.shippingCost ?? 60
+    const discount = requestData.discount ?? 0
+    const promoCode = requestData.promoCode ?? null
+    const providedSubtotal = requestData.subtotal
+    const providedTotal = requestData.total
+
     console.log('Parsed data:', {
-      cartItemsCount: cartItems?.length,
+      itemsCount: items?.length,
       hasUserInfo: !!userInfo,
       shippingCost,
       discount,
@@ -69,38 +77,38 @@ serve(async (req) => {
       subtotal: providedSubtotal,
       total: providedTotal
     })
-    
-    if (!cartItems || cartItems.length === 0) {
+
+    if (!items || items.length === 0) {
       throw new Error("No cart items provided")
     }
-    
+
     if (!userInfo) {
       throw new Error("No user info provided")
     }
-    
+
     // Log cart items structure
-    if (cartItems && cartItems.length > 0) {
-      console.log('First cart item structure:', Object.keys(cartItems[0]))
-      console.log('First cart item:', cartItems[0])
+    if (items && items.length > 0) {
+      console.log('First cart item structure:', Object.keys(items[0]))
+      console.log('First cart item:', items[0])
     }
-    
+
     // Calculate subtotal and total if not provided
-    const subtotal = providedSubtotal || cartItems.reduce((sum: number, item: any) => sum + (item.price * item.qty), 0)
+    const subtotal = providedSubtotal || items.reduce((sum: number, item: any) => sum + (Number(item.price) * Number(item.qty)), 0)
     const total = providedTotal || (subtotal - discount + shippingCost)
-    
+
     console.log('Creating order with calculated totals...')
-    
-    const orderInsertData: any = { 
+
+    const orderInsertData: any = {
       total_price: total,
       user_id: user.id,
       discount_amount: discount || 0,
       promo_code: promoCode?.code || null
     }
-    
+
     console.log('Order insert data:', orderInsertData)
-    
+
     const { data: orderData, error: orderError } = await supabaseAdmin.from('orders').insert(orderInsertData).select().single()
-    
+
     if (orderError) {
       console.error('Order insert error:', orderError);
       console.error('Order insert error details:', {
@@ -112,21 +120,21 @@ serve(async (req) => {
       console.error('Order data attempted:', JSON.stringify(orderInsertData, null, 2));
       throw new Error(`Failed to create order: ${orderError.message || 'Unknown database error'}`)
     }
-    
+
     const order_id = orderData.id
     console.log('Order created successfully with ID:', order_id)
-    
+
     // Create order items and update stock
     console.log('Creating order items and updating stock...')
     const orderItems = []
-    
-    for (const item of cartItems) {
+
+    for (const item of items) {
       // Validate item data
       if (!item.id || !item.qty || !item.price) {
         console.error('Invalid cart item:', item)
         continue
       }
-      
+
       // Handle product ID - could be integer or string
       let productId: number;
       if (typeof item.id === 'string') {
@@ -140,7 +148,7 @@ serve(async (req) => {
       } else {
         productId = item.id;
       }
-      
+
       // Create order item (note: size is stored in a separate column if your schema supports it, otherwise omit)
       const { error: itemError } = await supabaseAdmin.from('order_items').insert({
         order_id: order_id,
@@ -150,7 +158,7 @@ serve(async (req) => {
         // Note: If your order_items table has a 'size' column, uncomment the line below:
         // size: item.size || null
       })
-      
+
       if (itemError) {
         console.error('Error creating order item:', itemError);
         console.error('Item that failed:', JSON.stringify(item, null, 2));
@@ -164,7 +172,7 @@ serve(async (req) => {
       } else {
         orderItems.push(item)
       }
-      
+
       // Update product stock (decrease by quantity ordered)
       if (productId) {
         const { data: productData, error: productError } = await supabaseAdmin
@@ -172,7 +180,7 @@ serve(async (req) => {
           .select('stock')
           .eq('id', productId)
           .single()
-        
+
         if (productError) {
           console.error(`Error fetching product ${productId} for stock update:`, productError);
         } else if (productData) {
@@ -181,27 +189,27 @@ serve(async (req) => {
             .from('products')
             .update({ stock: newStock })
             .eq('id', productId);
-          
+
           if (updateStockError) {
             console.error(`Error updating stock for product ${productId}:`, updateStockError);
           }
         }
       }
     }
-    
+
     console.log(`Created ${orderItems.length} order items`)
-    
+
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    
+
     if (!resendApiKey) {
       console.warn('RESEND_API_KEY not set - emails will not be sent')
     }
-    
+
     // Create detailed order items list
-    const orderItemsList = cartItems.map((item: any) => 
+    const orderItemsList = items.map((item: any) =>
       `${item.name} ${item.size ? `(Size: ${item.size})` : ''} x${item.qty} - EGP ${(item.price * item.qty).toFixed(2)}`
     ).join('<br>')
-    
+
     // Send emails (don't fail the order if emails fail)
     if (resendApiKey) {
       try {
@@ -210,10 +218,10 @@ serve(async (req) => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
           body: JSON.stringify({
-              from: 'onboarding@resend.dev',
-              to: 'ziadbelal82@gmail.com',
-              subject: `Order from ${userInfo.full_name || userInfo.email || 'Unknown Customer'}`,
-              html: `
+            from: 'onboarding@resend.dev',
+            to: 'ziadbelal82@gmail.com',
+            subject: `Order from ${userInfo.full_name || userInfo.email || 'Unknown Customer'}`,
+            html: `
                 <h2>New Order Received!</h2>
                 <p><strong>Customer:</strong> ${userInfo.full_name || userInfo.email || 'Unknown'}</p>
                 <p><strong>Email:</strong> ${userInfo.email || 'Not provided'}</p>
@@ -232,21 +240,21 @@ serve(async (req) => {
                 <p><em>Order ID: ${order_id}</em></p>
               `
           })
-      });
-      
-      if (!adminEmailResponse.ok) {
-        console.error('Failed to send admin email:', await adminEmailResponse.text());
-      }
+        });
 
-      // Email to Customer
-      const customerEmailResponse = await fetch('https://api.resend.com/emails', {
+        if (!adminEmailResponse.ok) {
+          console.error('Failed to send admin email:', await adminEmailResponse.text());
+        }
+
+        // Email to Customer
+        const customerEmailResponse = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
           body: JSON.stringify({
-              from: 'Strike Team <onboarding@resend.dev>',
-              to: userInfo.email,
-              subject: 'Thank you for your order from Strike!',
-              html: `
+            from: 'Strike Team <onboarding@resend.dev>',
+            to: userInfo.email,
+            subject: 'Thank you for your order from Strike!',
+            html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h1 style="color: #333; border-bottom: 2px solid #000; padding-bottom: 10px;">Thank You for Your Order!</h1>
                   
@@ -277,8 +285,8 @@ serve(async (req) => {
                 </div>
               `
           })
-      });
-      
+        });
+
         if (!customerEmailResponse.ok) {
           console.error('Failed to send customer email:', await customerEmailResponse.text());
         }
@@ -290,23 +298,23 @@ serve(async (req) => {
       console.warn('RESEND_API_KEY not configured - skipping email notifications')
     }
 
-    return new Response(JSON.stringify({ success: true }), { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
-      status: 200 
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
     })
   } catch (error) {
     console.error('Edge Function error:', error);
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: errorMessage,
       details: error instanceof Error ? {
         name: error.name,
         message: error.message
       } : null
-    }), { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
-      status: 500 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500
     })
   }
 })

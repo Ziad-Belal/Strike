@@ -57,17 +57,17 @@ export default function App() {
       return;
     }
     setCartItems(prev => {
-        const existing = prev.find(i => i.id === product.id && i.size === size);
-        const newCart = existing
-            ? prev.map(i => i.id === product.id && i.size === size ? { ...i, qty: i.qty + qty } : i)
-            : [...prev, { ...product, size, qty }];
-        // Save to localStorage
-        try {
-          localStorage.setItem('strike_cart', JSON.stringify(newCart));
-        } catch (e) {
-          console.error('Failed to save cart to localStorage:', e);
-        }
-        return newCart;
+      const existing = prev.find(i => i.id === product.id && i.size === size);
+      const newCart = existing
+        ? prev.map(i => i.id === product.id && i.size === size ? { ...i, qty: i.qty + qty } : i)
+        : [...prev, { ...product, size, qty }];
+      // Save to localStorage
+      try {
+        localStorage.setItem('strike_cart', JSON.stringify(newCart));
+      } catch (e) {
+        console.error('Failed to save cart to localStorage:', e);
+      }
+      return newCart;
     });
     setCartOpen(true);
     toast.success(`${product.name} added to cart!`);
@@ -130,19 +130,37 @@ export default function App() {
       const subtotal = cartItems.reduce((sum, it) => sum + it.price * it.qty, 0);
       const shippingCost = cartItems.length > 0 ? 60 : 0;
       const discount = appliedPromo ? (
-        appliedPromo.discount_type === 'percentage' 
+        appliedPromo.discount_type === 'percentage'
           ? subtotal * (appliedPromo.discount_value / 100)
           : Math.min(appliedPromo.discount_value, subtotal)
       ) : 0;
       const discountedSubtotal = subtotal - discount;
       const total = discountedSubtotal + shippingCost;
 
+      // Normalize cart items and validate each
+      const items = cartItems.map((it) => ({
+        id: it.id,
+        name: it.name,
+        price: Number(it.price),
+        qty: Number(it.qty || 1),
+        size: it.size || null,
+        image_url: it.image_url || null,
+      }));
+      const invalidItem = items.find(i => !i.id || !i.name || !(i.price > 0) || !(i.qty >= 1));
+      if (invalidItem) {
+        console.error('Invalid cart item detected:', invalidItem);
+        toast.error('There is an issue with an item in your cart. Please remove and re-add it.');
+        return;
+      }
+
       // Prepare the order data with both cart items and user info
       const orderData = {
-        cartItems,
+        items,
+        currency: 'EGP',
         shippingCost,
         discount,
-        promoCode: appliedPromo,
+        promoCode: appliedPromo?.code || null,
+        promo: appliedPromo || null,
         subtotal,
         total,
         userInfo: {
@@ -154,8 +172,10 @@ export default function App() {
       };
 
       // Send the complete order data to the backend
-      const { data, error } = await supabase.functions.invoke('create-order-and-notify', {
+      const token = session?.access_token;
+      const { data, error } = await supabase.functions.invoke('place-order', {
         body: orderData,
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
 
       if (error) {
@@ -165,13 +185,17 @@ export default function App() {
           context: error.context,
           status: error.status
         });
-        
+
         // Try to get more details from the response
         let errorMessage = "There was an issue placing your order. Please try again.";
-        if (error.message) {
-          errorMessage = error.message;
-        }
-        
+        try {
+          if (error?.context) {
+            const ctx = await error.context.json();
+            if (ctx?.error) errorMessage = ctx.error;
+          }
+        } catch { }
+        if (error.message) errorMessage = errorMessage || error.message;
+
         toast.error(errorMessage);
       } else {
         // Update promo code usage if applied
