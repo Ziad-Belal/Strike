@@ -20,6 +20,7 @@ import ContactUs from './pages/ContactUs.jsx';
 import VisionMissionPage from './pages/VisionMissionPage.jsx';
 import { supabase } from './supabase';
 import { Toaster, toast } from 'react-hot-toast';
+import { Modal, Input, Button } from './components/atoms.jsx';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -33,6 +34,14 @@ export default function App() {
     }
   });
   const [cartOpen, setCartOpen] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [pfName, setPfName] = useState('');
+  const [pfPhone, setPfPhone] = useState('');
+  const [pfAddress, setPfAddress] = useState('');
+  const [pfLoading, setPfLoading] = useState(false);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [pendingPromo, setPendingPromo] = useState(null);
 
   useEffect(() => {
     // This correctly gets the initial session and listens for any changes.
@@ -49,6 +58,157 @@ export default function App() {
       subscription?.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!profileModalOpen || !session?.user) return;
+      try {
+        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id);
+        const p = data && data.length > 0 ? data[0] : null;
+        setPfName(p?.full_name || session.user.email || '');
+        const clean = (p?.phone || '').replace(/\D/g, '');
+        setPfPhone(clean);
+        setPfAddress(p?.address || '');
+      } catch {
+        setPfName(session.user.email || '');
+        setPfPhone('');
+        setPfAddress('');
+      }
+    };
+    loadProfile();
+  }, [profileModalOpen, session]);
+
+  const saveProfile = async () => {
+    if (!session?.user) return;
+    const cleanPhone = (pfPhone || '').replace(/\D/g, '');
+    const validPhone = cleanPhone.length >= 6 && cleanPhone.length <= 15;
+    if (!validPhone || !pfAddress) {
+      toast.error('Enter a valid phone (6-15 digits) and address.');
+      return;
+    }
+    try {
+      setPfLoading(true);
+      const { error } = await supabase.from('profiles').upsert([{
+        id: session.user.id,
+        full_name: pfName || session.user.email,
+        phone: cleanPhone,
+        address: pfAddress
+      }]).select();
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Profile updated.');
+      }
+    } catch (e) {
+      toast.error('Failed to update profile.');
+    } finally {
+      setPfLoading(false);
+    }
+  };
+  const performCheckout = async () => {
+    if (!session) {
+      setLoginModalOpen(true);
+      return;
+    }
+    if (cartItems.length === 0) {
+      toast.error('Your cart is empty.');
+      return;
+    }
+    const cleanPhone = (pfPhone || '').replace(/\D/g, '');
+    const hasValidPhone = cleanPhone.length >= 6 && cleanPhone.length <= 15;
+    if (!hasValidPhone || !pfAddress || !pfName) {
+      toast.error('Please fill name, valid phone (6-15 digits), and address.');
+      return;
+    }
+    try {
+      setPlacingOrder(true);
+      const { error: upsertError } = await supabase.from('profiles').upsert([{
+        id: session.user.id,
+        full_name: pfName || session.user.email,
+        phone: cleanPhone,
+        address: pfAddress
+      }]).select();
+      if (upsertError) {
+        toast.error(upsertError.message);
+        setPlacingOrder(false);
+        return;
+      }
+      const subtotal = cartItems.reduce((sum, it) => sum + it.price * it.qty, 0);
+      const shippingCost = cartItems.length > 0 ? 60 : 0;
+      const appliedPromo = pendingPromo;
+      const discount = appliedPromo ? (appliedPromo.discount_type === 'percentage' ? subtotal * (appliedPromo.discount_value / 100) : Math.min(appliedPromo.discount_value, subtotal)) : 0;
+      const discountedSubtotal = subtotal - discount;
+      const total = discountedSubtotal + shippingCost;
+      const items = cartItems.map((it) => ({
+        id: it.id,
+        name: it.name,
+        price: Number(it.price),
+        qty: Number(it.qty || 1),
+        size: it.size || null,
+        image_url: it.image_url || null,
+      }));
+      const invalidItem = items.find(i => !i.id || !i.name || !(i.price > 0) || !(i.qty >= 1));
+      if (invalidItem) {
+        toast.error('There is an issue with an item in your cart. Please remove and re-add it.');
+        setPlacingOrder(false);
+        return;
+      }
+      const orderData = {
+        items,
+        currency: 'EGP',
+        shippingCost,
+        discount,
+        promoCode: appliedPromo?.code || null,
+        promo: appliedPromo || null,
+        subtotal,
+        total,
+        userInfo: {
+          email: session.user.email,
+          full_name: pfName || session.user.email,
+          phone: cleanPhone,
+          address: pfAddress
+        }
+      };
+      const token = session?.access_token;
+      const { data, error } = await supabase.functions.invoke('place-order', {
+        body: orderData,
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (error) {
+        let errorMessage = 'There was an issue placing your order. Please try again.';
+        try {
+          if (error?.context) {
+            const ctx = await error.context.json();
+            if (ctx?.error) errorMessage = ctx.error;
+          }
+        } catch { }
+        if (error.message) errorMessage = errorMessage || error.message;
+        toast.error(errorMessage);
+        setPlacingOrder(false);
+      } else {
+        if (appliedPromo) {
+          try {
+            await supabase.from('promo_codes').update({ current_usages: appliedPromo.current_usages + 1 }).eq('id', appliedPromo.id);
+          } catch { }
+        }
+        toast.success('Order placed successfully! Please check your email.');
+        setCartItems([]);
+        try {
+          localStorage.removeItem('strike_cart');
+        } catch { }
+        setCartOpen(false);
+        setProfileModalOpen(false);
+        setPlacingOrder(false);
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred. Please try again.');
+      setPlacingOrder(false);
+    }
+  };
+  const saveProfileAndCheckout = async () => {
+    await saveProfile();
+    await performCheckout();
+  };
 
   // This is the full, working addToCart function.
   const addToCart = (product, size, qty) => {
@@ -91,140 +251,15 @@ export default function App() {
   // This is the updated handleCheckout function that includes user profile data
   const handleCheckout = async (appliedPromo = null) => {
     if (!session) {
-      toast.error("Please log in to continue.");
+      setLoginModalOpen(true);
       return;
     }
     if (cartItems.length === 0) {
       toast.error("Your cart is empty.");
       return;
     }
-
-    try {
-      // First, fetch the user's profile information without .single()
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id);
-
-      // Don't block checkout if profile doesn't exist, just use default values
-      let profile = null;
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-        console.log("Proceeding with checkout using email only");
-      } else if (profileData && profileData.length > 0) {
-        profile = profileData[0];
-      }
-
-      // Validate user contact info before proceeding
-      const phoneCandidate = (profile?.phone || '').trim();
-      const addressCandidate = (profile?.address || '').trim();
-      // Clean phone to get only digits
-      const cleanPhone = phoneCandidate.replace(/\D/g, '');
-      const hasValidPhone = cleanPhone.length >= 6 && cleanPhone.length <= 15;
-      if (!hasValidPhone || !addressCandidate) {
-        toast.error("Please complete your profile with a valid phone (6-15 digits) and address.");
-        return;
-      }
-
-      // Calculate totals including promo discount
-      const subtotal = cartItems.reduce((sum, it) => sum + it.price * it.qty, 0);
-      const shippingCost = cartItems.length > 0 ? 60 : 0;
-      const discount = appliedPromo ? (
-        appliedPromo.discount_type === 'percentage'
-          ? subtotal * (appliedPromo.discount_value / 100)
-          : Math.min(appliedPromo.discount_value, subtotal)
-      ) : 0;
-      const discountedSubtotal = subtotal - discount;
-      const total = discountedSubtotal + shippingCost;
-
-      // Normalize cart items and validate each
-      const items = cartItems.map((it) => ({
-        id: it.id,
-        name: it.name,
-        price: Number(it.price),
-        qty: Number(it.qty || 1),
-        size: it.size || null,
-        image_url: it.image_url || null,
-      }));
-      const invalidItem = items.find(i => !i.id || !i.name || !(i.price > 0) || !(i.qty >= 1));
-      if (invalidItem) {
-        console.error('Invalid cart item detected:', invalidItem);
-        toast.error('There is an issue with an item in your cart. Please remove and re-add it.');
-        return;
-      }
-
-      // Prepare the order data with both cart items and user info
-      const orderData = {
-        items,
-        currency: 'EGP',
-        shippingCost,
-        discount,
-        promoCode: appliedPromo?.code || null,
-        promo: appliedPromo || null,
-        subtotal,
-        total,
-        userInfo: {
-          email: session.user.email,
-          full_name: profile?.full_name || session.user.email,
-          phone: cleanPhone, // Use cleaned phone number (digits only)
-          address: addressCandidate
-        }
-      };
-
-      // Send the complete order data to the backend
-      const token = session?.access_token;
-      const { data, error } = await supabase.functions.invoke('place-order', {
-        body: orderData,
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-
-      if (error) {
-        console.error("Error from Edge Function:", error);
-        console.error("Error details:", {
-          message: error.message,
-          context: error.context,
-          status: error.status
-        });
-
-        // Try to get more details from the response
-        let errorMessage = "There was an issue placing your order. Please try again.";
-        try {
-          if (error?.context) {
-            const ctx = await error.context.json();
-            if (ctx?.error) errorMessage = ctx.error;
-          }
-        } catch { }
-        if (error.message) errorMessage = errorMessage || error.message;
-
-        toast.error(errorMessage);
-      } else {
-        // Update promo code usage if applied
-        if (appliedPromo) {
-          try {
-            await supabase
-              .from('promo_codes')
-              .update({ current_usages: appliedPromo.current_usages + 1 })
-              .eq('id', appliedPromo.id);
-          } catch (promoError) {
-            console.error("Error updating promo code usage:", promoError);
-            // Don't fail the entire checkout for promo code update errors
-          }
-        }
-
-        toast.success("Order placed successfully! Please check your email.");
-        setCartItems([]);
-        // Clear cart from localStorage
-        try {
-          localStorage.removeItem('strike_cart');
-        } catch (e) {
-          console.error('Failed to clear cart from localStorage:', e);
-        }
-        setCartOpen(false);
-      }
-    } catch (error) {
-      console.error("Checkout error:", error);
-      toast.error("An unexpected error occurred. Please try again.");
-    }
+    setPendingPromo(appliedPromo);
+    setProfileModalOpen(true);
   };
 
   return (
@@ -253,6 +288,27 @@ export default function App() {
       </Routes>
       <Footer />
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} items={cartItems} removeItem={removeItem} onCheckout={handleCheckout} />
+      <Modal open={loginModalOpen} onClose={() => setLoginModalOpen(false)}>
+        <div className='space-y-4'>
+          <div className='text-lg font-semibold'>Please log in to continue</div>
+          <div className='flex items-center gap-2'>
+            <Button asChild><a href="/login">Login</a></Button>
+            <Button variant='outline' asChild><a href="/signup">Sign Up</a></Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal open={profileModalOpen} onClose={() => setProfileModalOpen(false)}>
+        <div className='space-y-4'>
+          <div className='text-lg font-semibold'>Complete Your Profile</div>
+          <Input placeholder='Full Name' value={pfName} onChange={(e) => setPfName(e.target.value)} />
+          <Input placeholder='Phone Number (6-15 digits)' value={pfPhone} onChange={(e) => setPfPhone(e.target.value.replace(/\D/g, ''))} />
+          <Input placeholder='Address' value={pfAddress} onChange={(e) => setPfAddress(e.target.value)} />
+          <div className='flex items-center gap-2'>
+            <Button onClick={saveProfileAndCheckout} disabled={pfLoading || placingOrder}>{pfLoading || placingOrder ? 'Processing...' : 'Continue'}</Button>
+            <Button variant='outline' onClick={() => setProfileModalOpen(false)}>Cancel</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
