@@ -79,12 +79,23 @@ serve(async (req) => {
         console.log('place-order: order_items insert error', itemErr)
       }
       const { data: p } = await writeClient.from('products').select('stock').eq('id', pid).single()
-      if (p) {
-        const newStock = Math.max(0, (p.stock ?? 0) - Number(item.qty))
-        const { error: stockErr } = await writeClient.from('products').update({ stock: newStock }).eq('id', pid)
-        if (stockErr) {
-          console.log('place-order: stock update error', stockErr)
-        }
+      if (!p || typeof p.stock !== 'number') {
+        return new Response(JSON.stringify({ error: 'Product unavailable or stock not set' }), {
+          headers: { ...baseCors, 'Content-Type': 'application/json' },
+          status: 400
+        })
+      }
+      const requested = Number(item.qty)
+      if (requested > p.stock) {
+        return new Response(JSON.stringify({ error: 'Insufficient stock for one of the items' }), {
+          headers: { ...baseCors, 'Content-Type': 'application/json' },
+          status: 400
+        })
+      }
+      const newStock = Math.max(0, p.stock - requested)
+      const { error: stockErr } = await writeClient.from('products').update({ stock: newStock }).eq('id', pid)
+      if (stockErr) {
+        console.log('place-order: stock update error', stockErr)
       }
     }
 
