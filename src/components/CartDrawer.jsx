@@ -80,75 +80,89 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
 
   return (
     <Sheet open={open} onClose={onClose}>
-      <div className='flex items-center justify-between relative'>
-        <h2 className='text-lg font-semibold'>Your Cart</h2>
+      <div className='flex items-center justify-between relative mb-6'>
+        <h2 className='text-2xl font-bold text-gray-900'>Your Cart</h2>
         <button
           onClick={onClose}
-          className="absolute top-0 right-0 text-gray-500 hover:text-black text-xl"
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           aria-label="Close cart"
         >
           ✕
         </button>
       </div>
-      <div className='mt-4 flex-1 overflow-y-auto space-y-4'> {/* Added flex-1 and overflow for long carts */}
-        {items.length === 0 && <div className='text-center py-10 text-sm text-black/60'>Your cart is empty.</div>}
+      <div className='mt-4 flex-1 overflow-y-auto space-y-4'>
+        {items.length === 0 && (
+          <div className='text-center py-16 space-y-4'>
+            <div className='text-6xl'>🛒</div>
+            <div className='text-lg text-gray-600'>Your cart is empty.</div>
+            <button 
+              onClick={onClose} 
+              className='text-sm text-black font-semibold underline underline-offset-4 hover:no-underline'
+            >
+              Continue shopping
+            </button>
+          </div>
+        )}
         
         {items.map((it, idx) => {
-          // Get the product image - use first image from image_urls array or fallback to image_url
           const productImage = it.image_urls && it.image_urls.length > 0 
             ? it.image_urls[0] 
             : it.image_url || placeholderImg;
           
           return (
-            <div key={`${it.id}-${it.size}`} className='flex gap-3 rounded-2xl border border-black/10 p-3'> {/* Improved key */}
+            <div 
+              key={`${it.id}-${it.size}`} 
+              className='flex gap-4 rounded-2xl border border-gray-100 p-4 bg-white shadow-sm hover:shadow-md transition-shadow'
+            >
               <img 
                 src={productImage}
                 alt={it.name} 
-                className='h-20 w-20 rounded-xl object-cover'
+                className='h-24 w-24 rounded-xl object-cover'
               />
               <div className='flex-1'>
-                <div className='font-medium'>{it.name || 'Product'}</div>
-                <div className='text-sm'>{it.size ? `Size: ${it.size} • ` : ''}Qty: {it.qty}</div>
+                <div className='font-semibold text-gray-900'>{it.name || 'Product'}</div>
+                <div className='text-sm text-gray-500 mt-1'>{it.size ? `Size: ${it.size} • ` : ''}Qty: {it.qty}</div>
+                <div className='text-sm font-bold text-gray-900 mt-2'>{currency(it.price * it.qty)}</div>
               </div>
-              <div className='text-right'>
-                <div className='font-semibold'>{currency(it.price * it.qty)}</div>
-                {/* 3. Updated removeItem to pass the whole item object */}
-                <button className='mt-2 text-xs text-black/60 hover:text-black' onClick={() => removeItem(it)}>Remove</button>
-              </div>
+              <button 
+                className='text-gray-400 hover:text-red-500 transition-colors'
+                onClick={() => removeItem(it)}
+                title="Remove item"
+              >
+                ✕
+              </button>
             </div>
           );
         })}
       </div>
       
-      {/* This checkout block will only show if there are items in the cart */}
       {items.length > 0 && (
-        <div className='mt-6 rounded-2xl bg-black/5 p-4'>
-          {/* Promo Code Section */}
-          <div className='mb-4'>
-            <label className='block text-sm font-medium mb-2'>Promo Code</label>
+        <div className='mt-8 rounded-2xl bg-gray-50 p-6 shadow-inner'>
+          <div className='mb-6'>
+            <label className='block text-sm font-bold text-gray-900 mb-3'>Promo Code</label>
             {!appliedPromo ? (
-              <div className='flex gap-2'>
+              <div className='flex gap-3'>
                 <input
                   type='text'
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                   placeholder='Enter promo code'
-                  className='flex-1 p-2 border rounded text-sm'
+                  className='flex-1 p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all'
                   onKeyPress={(e) => e.key === 'Enter' && applyPromoCode()}
                 />
                 <Button 
                   onClick={applyPromoCode} 
                   disabled={promoLoading}
-                  className='px-4 py-2 text-sm'
+                  className='px-6 py-3'
                 >
                   {promoLoading ? 'Applying...' : 'Apply'}
                 </Button>
               </div>
             ) : (
-              <div className='flex items-center justify-between bg-green-50 border border-green-200 rounded p-2'>
-                <div className='flex items-center gap-2'>
-                  <span className='text-green-600 font-medium'>{appliedPromo.code}</span>
-                  <span className='text-sm text-green-600'>
+              <div className='flex items-center justify-between bg-green-50 border border-green-200 rounded-xl p-4'>
+                <div className='flex items-center gap-3'>
+                  <span className='text-green-700 font-bold'>{appliedPromo.code}</span>
+                  <span className='text-sm text-green-700'>
                     {appliedPromo.discount_type === 'percentage' 
                       ? `${appliedPromo.discount_value}% off`
                       : `EGP ${appliedPromo.discount_value} off`
@@ -157,7 +171,7 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
                 </div>
                 <button 
                   onClick={removePromoCode}
-                  className='text-green-600 hover:text-green-800 text-sm'
+                  className='text-green-700 hover:text-green-900 text-sm font-semibold'
                 >
                   Remove
                 </button>
@@ -165,27 +179,31 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
             )}
           </div>
 
-          <div className='flex items-center justify-between text-sm'>
-            <span>Subtotal</span>
-            <span>{currency(subtotal)}</span>
-          </div>
-          {discount > 0 && (
-            <div className='flex items-center justify-between text-sm mt-1 text-green-600'>
-              <span>Discount ({appliedPromo.code})</span>
-              <span>-{currency(discount)}</span>
+          <div className='space-y-3'>
+            <div className='flex items-center justify-between text-gray-700'>
+              <span>Subtotal</span>
+              <span className='font-semibold'>{currency(subtotal)}</span>
             </div>
-          )}
-          <div className='flex items-center justify-between text-sm mt-1'>
-            <span>Shipping</span>
-            <span>{currency(SHIPPING_COST)}</span>
+            {discount > 0 && (
+              <div className='flex items-center justify-between text-green-700 font-semibold'>
+                <span>Discount ({appliedPromo.code})</span>
+                <span>-{currency(discount)}</span>
+              </div>
+            )}
+            <div className='flex items-center justify-between text-gray-700'>
+              <span>Shipping</span>
+              <span className='font-semibold'>{currency(SHIPPING_COST)}</span>
+            </div>
+            <div className='border-t border-gray-200 my-3'></div>
+            <div className='flex items-center justify-between text-xl font-bold text-gray-900'>
+              <span>Total</span>
+              <span>{currency(total)}</span>
+            </div>
           </div>
-          <hr className='my-2 border-black/10' />
-          <div className='flex items-center justify-between font-semibold'>
-            <span>Total</span>
-            <span>{currency(total)}</span>
-          </div>
-          {/* 4. Connected the onCheckout function to the button */}
-          <Button onClick={() => onCheckout(appliedPromo)} className='mt-4 w-full'>
+          <Button 
+            onClick={() => onCheckout(appliedPromo)} 
+            className='mt-8 w-full text-base py-4 shadow-xl hover:shadow-2xl transition-shadow'
+          >
             Proceed to Checkout
           </Button>
         </div>

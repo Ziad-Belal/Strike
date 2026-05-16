@@ -100,37 +100,37 @@ export default function ProductPage({ addToCart }) {
   };
 
   return (
-    <div className='container py-10'>
-      <div className='grid gap-8 md:grid-cols-2'>
+    <div className='container py-16'>
+      <div className='grid gap-12 md:grid-cols-2 items-start'>
         {/* Image Gallery */}
         <div className="flex flex-col">
           {/* Main Image */}
-          <div className="relative mb-4">
-            <img
-              src={productImages[selectedImageIndex] || 'https://placehold.co/800x600'}
-              alt={`${product.name} ${selectedImageIndex + 1}`}
-              className='w-full rounded-3xl object-cover aspect-[3/2] max-h-[600px] cursor-pointer hover:opacity-95 transition-opacity'
+          <div className="relative mb-6 rounded-3xl overflow-hidden shadow-xl">
+            <img 
+              src={productImages[selectedImageIndex] || 'https://placehold.co/800x600'} 
+              alt={`${product.name} ${selectedImageIndex + 1}`} 
+              className='w-full rounded-3xl object-cover aspect-[4/3] max-h-[700px] cursor-pointer hover:opacity-95 transition-opacity' 
               onClick={() => openModal(productImages[selectedImageIndex])}
             />
-
+            
             {/* Navigation arrows (only show if more than 1 image) */}
             {productImages.length > 1 && (
               <>
                 <button
                   onClick={prevImage}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-all"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full p-3 shadow-xl transition-all hover:scale-110"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-6 h-6" />
                 </button>
                 <button
                   onClick={nextImage}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-all"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full p-3 shadow-xl transition-all hover:scale-110"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-6 h-6" />
                 </button>
-
+                
                 {/* Image counter */}
-                <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                <div className="absolute bottom-6 right-6 bg-black/70 text-white px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm">
                   {selectedImageIndex + 1} / {productImages.length}
                 </div>
               </>
@@ -138,31 +138,32 @@ export default function ProductPage({ addToCart }) {
           </div>
 
           {/* Thumbnail Gallery */}
-          <div className="grid grid-cols-4 gap-2 md:grid-cols-5">
+          <div className="grid grid-cols-4 gap-3 md:grid-cols-6">
             {productImages.map((imageUrl, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedImageIndex(index)}
-                className={`relative rounded-lg overflow-hidden aspect-square ${selectedImageIndex === index
-                  ? 'ring-2 ring-black ring-offset-2'
-                  : 'opacity-70 hover:opacity-100'
-                  } transition-all`}
+                className={`relative rounded-xl overflow-hidden aspect-square ${
+                  selectedImageIndex === index 
+                    ? 'ring-2 ring-black ring-offset-4 shadow-lg' 
+                    : 'opacity-70 hover:opacity-100 hover:shadow-md'
+                } transition-all`}
               >
-                <img
-                  src={imageUrl}
+                <img 
+                  src={imageUrl} 
                   alt={`${product.name} thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
               </button>
             ))}
           </div>
-
+          
           {/* Size Chart Display */}
           {product.size_chart_url && (
-            <div className="mt-6">
+            <div className="mt-8">
               <button
                 onClick={() => openModal(product.size_chart_url)}
-                className="relative w-full max-w-48 mx-auto rounded-xl overflow-hidden border-2 border-blue-500/30 hover:border-blue-500/60 transition-all"
+                className="relative w-full max-w-48 mx-auto rounded-xl overflow-hidden border-2 border-blue-500/30 hover:border-blue-500/60 transition-all shadow-md hover:shadow-lg"
               >
                 <img
                   src={product.size_chart_url}
@@ -170,7 +171,7 @@ export default function ProductPage({ addToCart }) {
                   className="w-full h-auto object-contain"
                 />
                 <div className="absolute inset-0 bg-blue-500/10 flex items-center justify-center">
-                  <div className="bg-white text-blue-600 px-3 py-1 rounded text-sm font-bold shadow">
+                  <div className="bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-bold shadow">
                     View Size Chart
                   </div>
                 </div>
@@ -180,23 +181,26 @@ export default function ProductPage({ addToCart }) {
         </div>
 
         {/* Product Details */}
-        <div>
-          <div className='text-sm text-black/60'>{product.category.toUpperCase()}</div>
-          <h1 className='mt-1 text-2xl font-bold'>{product.name}</h1>
-          <div className='mt-4 text-2xl font-semibold'>{currency(product.price)}</div>
+        <div className="space-y-8">
+          <div>
+            <div className='text-sm text-gray-500 uppercase tracking-widest mb-2'>{product.category.toUpperCase()}</div>
+            <h1 className='mt-1 text-4xl font-extrabold text-gray-900 leading-tight'>{product.name}</h1>
+            <div className='mt-4 text-3xl font-bold text-gray-900'>{currency(product.price)}</div>
+          </div>
 
           {hasSizes && (
-            <div className='mt-6'>
-              <div className='mb-2 text-sm font-semibold'>Select Size</div>
-              <div className='flex flex-wrap gap-2'>
+            <div className='space-y-4'>
+              <div className='text-sm font-bold text-gray-900'>Select Size</div>
+              <div className='flex flex-wrap gap-3'>
                 {product.available_sizes.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setSelectedSize(s)}
-                    className={`rounded-xl border px-3 py-2 text-sm ${selectedSize === s
-                      ? 'border-black bg-black text-white'
-                      : 'border-black/10 hover:bg-black/5'
-                      }`}
+                  <button 
+                    key={s} 
+                    onClick={() => setSelectedSize(s)} 
+                    className={`rounded-xl border-2 px-5 py-3 text-base font-semibold transition-all ${
+                      selectedSize===s
+                        ? 'border-black bg-black text-white shadow-lg'
+                        : 'border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                    }`}
                   >
                     {s}
                   </button>
@@ -205,41 +209,43 @@ export default function ProductPage({ addToCart }) {
             </div>
           )}
 
-          <div className='mt-4 flex items-center gap-2'>
-            <label className='text-sm'>Qty</label>
-            <Input
-              type='number'
-              min={1}
-              max={product.stock}
-              value={qty}
-              onChange={(e) => setQty(Math.max(1, Math.min(product.stock, Number(e.target.value))))}
-              className='w-20'
-            />
-            <span className={`text-sm ${product.stock <= 0 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
+          <div className='flex items-center gap-4'>
+            <div className="flex items-center gap-3">
+              <label className='text-sm font-semibold text-gray-700'>Quantity</label>
+              <Input 
+                type='number' 
+                min={1} 
+                max={product.stock}
+                value={qty} 
+                onChange={(e)=> setQty(Math.max(1, Math.min(product.stock, Number(e.target.value))))} 
+                className='w-24 text-center'
+              />
+            </div>
+            <span className={`text-sm font-semibold ${product.stock <= 0 ? 'text-red-600' : 'text-gray-600'}`}>
               {product.stock <= 0 ? 'Out of stock' : `In stock: ${product.stock}`}
             </span>
           </div>
 
-          <div className='mt-6 flex gap-3'>
-            <Button
-              size='lg'
-              onClick={handleAddToCart}
-              className='gap-2 flex-1'
+          <div className='flex gap-4'>
+            <Button 
+              size='lg' 
+              onClick={handleAddToCart} 
+              className='gap-3 flex-1 text-base py-4 shadow-xl hover:shadow-2xl transition-shadow'
               disabled={product.stock <= 0}
             >
-              <ShoppingCart size={18} /> {product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
+              <ShoppingCart size={20}/> {product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
             </Button>
           </div>
 
-          <div className='mt-8 space-y-3 text-sm text-black/70'>
-            <div>{product.description}</div>
+          <div className='space-y-4 pt-6 border-t border-gray-100'>
+            <div className='text-base text-gray-700 leading-relaxed'>{product.description}</div>
           </div>
         </div>
       </div>
-
-      {isModalOpen && <ImageModal
+      
+      {isModalOpen && <ImageModal 
         imageUrl={modalImageUrl}
-        onClose={closeModal}
+        onClose={closeModal} 
       />}
     </div>
   );
