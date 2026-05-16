@@ -14,8 +14,8 @@ function ImageModal({ imageUrl, onClose }) {
   if (!imageUrl) return null;
 
   return (
-    <div 
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" 
+    <div
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div className="relative max-w-full max-h-full" onClick={(e) => e.stopPropagation()}>
@@ -40,6 +40,7 @@ export default function ProductPage({ addToCart }) {
   const [selectedSize, setSelectedSize] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalImageUrl, setModalImageUrl] = useState(null);
 
   useEffect(() => {
     supabase.from('products').select('*').eq('id', id).single()
@@ -53,15 +54,23 @@ export default function ProductPage({ addToCart }) {
   if (!product) return <div className="container text-center py-10">Product not found.</div>;
 
   // Get all product images (support both old single image and new multiple images)
-  const productImages = product.image_urls && product.image_urls.length > 0 
-    ? product.image_urls 
+  const productImages = product.image_urls && product.image_urls.length > 0
+    ? product.image_urls
     : [product.image_url].filter(Boolean);
 
   const hasSizes = product.available_sizes && product.available_sizes.length > 0;
-  
+
   const handleAddToCart = () => {
     if (hasSizes && !selectedSize) {
       toast.error('Please select a size first.');
+      return;
+    }
+    if (product.stock <= 0) {
+      toast.error('This product is out of stock!');
+      return;
+    }
+    if (qty > product.stock) {
+      toast.error(`Only ${product.stock} items available in stock!`);
       return;
     }
     addToCart(product, selectedSize, qty);
@@ -69,20 +78,26 @@ export default function ProductPage({ addToCart }) {
 
   const nextImage = (e) => {
     e.stopPropagation(); // prevent modal from opening
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === productImages.length - 1 ? 0 : prev + 1
     );
   };
 
   const prevImage = (e) => {
     e.stopPropagation(); // prevent modal from opening
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === 0 ? productImages.length - 1 : prev - 1
     );
   };
 
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
+  const openModal = (imageUrl) => {
+    setModalImageUrl(imageUrl);
+    setIsModalOpen(true);
+  };
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setModalImageUrl(null);
+  };
 
   return (
     <div className='container py-10'>
@@ -91,13 +106,13 @@ export default function ProductPage({ addToCart }) {
         <div className="flex flex-col">
           {/* Main Image */}
           <div className="relative mb-4">
-            <img 
-              src={productImages[selectedImageIndex] || 'https://placehold.co/800x600'} 
-              alt={`${product.name} ${selectedImageIndex + 1}`} 
-              className='w-full rounded-3xl object-cover aspect-[3/2] max-h-[600px] cursor-pointer hover:opacity-95 transition-opacity' 
-              onClick={openModal}
+            <img
+              src={productImages[selectedImageIndex] || 'https://placehold.co/800x600'}
+              alt={`${product.name} ${selectedImageIndex + 1}`}
+              className='w-full rounded-3xl object-cover aspect-[3/2] max-h-[600px] cursor-pointer hover:opacity-95 transition-opacity'
+              onClick={() => openModal(productImages[selectedImageIndex])}
             />
-            
+
             {/* Navigation arrows (only show if more than 1 image) */}
             {productImages.length > 1 && (
               <>
@@ -113,7 +128,7 @@ export default function ProductPage({ addToCart }) {
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
-                
+
                 {/* Image counter */}
                 <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
                   {selectedImageIndex + 1} / {productImages.length}
@@ -122,26 +137,44 @@ export default function ProductPage({ addToCart }) {
             )}
           </div>
 
-          {/* Thumbnail Gallery (only show if more than 1 image) */}
-          {productImages.length > 1 && (
-            <div className="grid grid-cols-4 gap-2 md:grid-cols-5">
-              {productImages.map((imageUrl, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImageIndex(index)}
-                  className={`relative rounded-lg overflow-hidden aspect-square ${
-                    selectedImageIndex === index 
-                      ? 'ring-2 ring-black ring-offset-2' 
-                      : 'opacity-70 hover:opacity-100'
+          {/* Thumbnail Gallery */}
+          <div className="grid grid-cols-4 gap-2 md:grid-cols-5">
+            {productImages.map((imageUrl, index) => (
+              <button
+                key={index}
+                onClick={() => setSelectedImageIndex(index)}
+                className={`relative rounded-lg overflow-hidden aspect-square ${selectedImageIndex === index
+                  ? 'ring-2 ring-black ring-offset-2'
+                  : 'opacity-70 hover:opacity-100'
                   } transition-all`}
-                >
-                  <img 
-                    src={imageUrl} 
-                    alt={`${product.name} thumbnail ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
+              >
+                <img
+                  src={imageUrl}
+                  alt={`${product.name} thumbnail ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+
+          {/* Size Chart Display */}
+          {product.size_chart_url && (
+            <div className="mt-6">
+              <button
+                onClick={() => openModal(product.size_chart_url)}
+                className="relative w-full max-w-48 mx-auto rounded-xl overflow-hidden border-2 border-blue-500/30 hover:border-blue-500/60 transition-all"
+              >
+                <img
+                  src={product.size_chart_url}
+                  alt="Size chart"
+                  className="w-full h-auto object-contain"
+                />
+                <div className="absolute inset-0 bg-blue-500/10 flex items-center justify-center">
+                  <div className="bg-white text-blue-600 px-3 py-1 rounded text-sm font-bold shadow">
+                    View Size Chart
+                  </div>
+                </div>
+              </button>
             </div>
           )}
         </div>
@@ -157,14 +190,13 @@ export default function ProductPage({ addToCart }) {
               <div className='mb-2 text-sm font-semibold'>Select Size</div>
               <div className='flex flex-wrap gap-2'>
                 {product.available_sizes.map(s => (
-                  <button 
-                    key={s} 
-                    onClick={() => setSelectedSize(s)} 
-                    className={`rounded-xl border px-3 py-2 text-sm ${
-                      selectedSize===s
-                        ? 'border-black bg-black text-white'
-                        : 'border-black/10 hover:bg-black/5'
-                    }`}
+                  <button
+                    key={s}
+                    onClick={() => setSelectedSize(s)}
+                    className={`rounded-xl border px-3 py-2 text-sm ${selectedSize === s
+                      ? 'border-black bg-black text-white'
+                      : 'border-black/10 hover:bg-black/5'
+                      }`}
                   >
                     {s}
                   </button>
@@ -175,18 +207,27 @@ export default function ProductPage({ addToCart }) {
 
           <div className='mt-4 flex items-center gap-2'>
             <label className='text-sm'>Qty</label>
-            <Input 
-              type='number' 
-              min={1} 
-              value={qty} 
-              onChange={(e)=> setQty(Math.max(1, Number(e.target.value)))} 
+            <Input
+              type='number'
+              min={1}
+              max={product.stock}
+              value={qty}
+              onChange={(e) => setQty(Math.max(1, Math.min(product.stock, Number(e.target.value))))}
               className='w-20'
             />
+            <span className={`text-sm ${product.stock <= 0 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
+              {product.stock <= 0 ? 'Out of stock' : `In stock: ${product.stock}`}
+            </span>
           </div>
 
           <div className='mt-6 flex gap-3'>
-            <Button size='lg' onClick={handleAddToCart} className='gap-2 flex-1'>
-              <ShoppingCart size={18}/> Add to Cart
+            <Button
+              size='lg'
+              onClick={handleAddToCart}
+              className='gap-2 flex-1'
+              disabled={product.stock <= 0}
+            >
+              <ShoppingCart size={18} /> {product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
             </Button>
           </div>
 
@@ -195,10 +236,10 @@ export default function ProductPage({ addToCart }) {
           </div>
         </div>
       </div>
-      
-      {isModalOpen && <ImageModal 
-        imageUrl={productImages[selectedImageIndex]}
-        onClose={closeModal} 
+
+      {isModalOpen && <ImageModal
+        imageUrl={modalImageUrl}
+        onClose={closeModal}
       />}
     </div>
   );

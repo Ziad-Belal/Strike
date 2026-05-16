@@ -216,8 +216,19 @@ export default function App() {
       toast.error('Please select a size first.');
       return;
     }
+    if (product.stock <= 0) {
+      toast.error('This product is out of stock!');
+      return;
+    }
     setCartItems(prev => {
       const existing = prev.find(i => i.id === product.id && i.size === size);
+      const totalInCart = existing ? existing.qty + qty : qty;
+      
+      if (totalInCart > product.stock) {
+        toast.error(`Only ${product.stock} items available in stock!`);
+        return prev;
+      }
+      
       const newCart = existing
         ? prev.map(i => i.id === product.id && i.size === size ? { ...i, qty: i.qty + qty } : i)
         : [...prev, { ...product, size, qty }];

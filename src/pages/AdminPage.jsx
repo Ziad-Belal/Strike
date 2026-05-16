@@ -19,6 +19,8 @@ export default function AdminPage() {
   const [color, setColor] = useState(''); // NEW: Color state
   const [category, setCategory] = useState('men');
   const [imageFiles, setImageFiles] = useState([]);
+  const [sizeChartFile, setSizeChartFile] = useState(null);
+  const [sizeChartUrl, setSizeChartUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
   // Product management states
@@ -90,6 +92,12 @@ export default function AdminPage() {
     setImageFiles(files);
   };
 
+  // Handle size chart file selection
+  const handleSizeChartFileChange = (e) => {
+    const file = e.target.files[0];
+    setSizeChartFile(file || null);
+  };
+
   // Add product with multiple images
   const handleAddProduct = async (e) => {
     e.preventDefault();
@@ -103,6 +111,13 @@ export default function AdminPage() {
     try {
       // Upload all images
       const imageUrls = await uploadImages(imageFiles);
+
+      // Upload size chart if file is selected
+      let finalSizeChartUrl = sizeChartUrl || null;
+      if (sizeChartFile) {
+        const [sizeChartUrlFromStorage] = await uploadImages([sizeChartFile]);
+        finalSizeChartUrl = sizeChartUrlFromStorage;
+      }
 
       // Prepare sizes array
       const available_sizes = sizes.split(',').map(s => s.trim()).filter(Boolean);
@@ -118,6 +133,7 @@ export default function AdminPage() {
         image_url: imageUrls[0],
         image_urls: imageUrls,
         available_sizes,
+        size_chart_url: finalSizeChartUrl,
         // Removed: is_deleted: false
       }]);
 
@@ -134,6 +150,8 @@ export default function AdminPage() {
         setColor('');
         setSizes('');
         setImageFiles([]);
+        setSizeChartFile(null);
+        setSizeChartUrl('');
         e.target.reset();
         fetchProducts();
       }
@@ -198,7 +216,7 @@ export default function AdminPage() {
           details: error.details,
           hint: error.hint
         });
-        
+
         // Provide more specific error messages
         if (error.code === 'PGRST116') {
           toast.error('Product not found or you do not have permission to delete it');
@@ -268,6 +286,12 @@ export default function AdminPage() {
 
     const available_sizes = product.sizes.split(',').map(s => s.trim()).filter(Boolean);
 
+    let finalSizeChartUrl = product.size_chart_url || null;
+    if (product.sizeChartFile) {
+      const [sizeChartUrlFromStorage] = await uploadImages([product.sizeChartFile]);
+      finalSizeChartUrl = sizeChartUrlFromStorage;
+    }
+
     const { error } = await supabase
       .from('products')
       .update({
@@ -278,6 +302,7 @@ export default function AdminPage() {
         category: product.category,
         color: product.color,
         available_sizes,
+        size_chart_url: finalSizeChartUrl,
       })
       .eq('id', product.id);
 
@@ -497,6 +522,27 @@ export default function AdminPage() {
                 </p>
               )}
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Size Chart Image (optional) - Choose file or enter URL</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleSizeChartFileChange}
+                className="w-full p-2 border rounded mb-2"
+              />
+              {sizeChartFile && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Selected: {sizeChartFile.name}
+                </p>
+              )}
+              <input
+                type="text"
+                value={sizeChartUrl}
+                onChange={e => setSizeChartUrl(e.target.value)}
+                className="w-full p-2 border rounded"
+                placeholder="Or enter URL: https://example.com/size-chart.jpg"
+              />
+            </div>
             <button type="submit" className="bg-black text-white px-8 py-3 rounded-lg text-lg font-bold hover:bg-black/90" disabled={isUploading}>
               {isUploading ? 'Uploading...' : 'Add Product'}
             </button>
@@ -538,234 +584,267 @@ export default function AdminPage() {
               {products
                 .filter(product => showDeleted || !product.is_deleted)
                 .map(product => {
-                const productImages = product.image_urls || [product.image_url].filter(Boolean);
-                return (
-                  <div key={product.id} className={`bg-white border rounded-lg p-4 ${product.is_deleted ? 'opacity-60 bg-gray-50' : ''}`}>
-                    {product.is_deleted && (
-                      <div className="mb-2 px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded inline-block">
-                        DELETED
-                      </div>
-                    )}
-                    <div className="flex items-start gap-4">
-                      {/* Main Product Info */}
-                      <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                        <img
-                          src={productImages[0] || 'https://via.placeholder.com/64'}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
+                  const productImages = product.image_urls || [product.image_url].filter(Boolean);
+                  return (
+                    <div key={product.id} className={`bg-white border rounded-lg p-4 ${product.is_deleted ? 'opacity-60 bg-gray-50' : ''}`}>
+                      {product.is_deleted && (
+                        <div className="mb-2 px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded inline-block">
+                          DELETED
+                        </div>
+                      )}
+                      <div className="flex items-start gap-4">
+                        {/* Main Product Info */}
+                        <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                          <img
+                            src={productImages[0] || 'https://via.placeholder.com/64'}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
 
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg">{product.name}</h3>
-                        <p className="text-gray-600 text-sm">{product.description}</p>
-                        <div className="flex items-center gap-4 mt-2 text-sm">
-                          <span className="font-medium">EGP{Number(product.price).toFixed(2)}</span>
-                          <span className="text-gray-500">Stock: {product.stock}</span>
-                          <span className="text-gray-500">Category: {product.category}</span>
-                          {product.color && (
-                            <span className="text-gray-500">Color: {product.color}</span>
-                          )}
-                          {product.available_sizes && (
-                            <span className="text-gray-500">Sizes: {product.available_sizes.join(', ')}</span>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg">{product.name}</h3>
+                          <p className="text-gray-600 text-sm">{product.description}</p>
+                          <div className="flex items-center gap-4 mt-2 text-sm">
+                            <span className="font-medium">EGP{Number(product.price).toFixed(2)}</span>
+                            <span className="text-gray-500">Stock: {product.stock}</span>
+                            <span className="text-gray-500">Category: {product.category}</span>
+                            {product.color && (
+                              <span className="text-gray-500">Color: {product.color}</span>
+                            )}
+                            {product.available_sizes && (
+                              <span className="text-gray-500">Sizes: {product.available_sizes.join(', ')}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingDetails(editingDetails && editingDetails.id === product.id ? null : { ...product, sizes: product.available_sizes ? product.available_sizes.join(', ') : '', size_chart_url: product.size_chart_url })}
+                            className="bg-green-100 hover:bg-green-200 text-green-600 p-2 rounded-lg transition-colors"
+                            title="Edit product details"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditingProduct(editingProduct === product.id ? null : product.id)}
+                            className="bg-blue-100 hover:bg-blue-200 text-blue-600 p-2 rounded-lg transition-colors"
+                            title="Manage images"
+                          >
+                            <ImageIcon className="w-4 h-4" />
+                          </button>
+                          {product.is_deleted ? (
+                            <button
+                              onClick={() => handleRestoreProduct(product.id, product.name)}
+                              className="bg-green-100 hover:bg-green-200 text-green-600 p-2 rounded-lg transition-colors"
+                              title="Restore product"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleDeleteProduct(product.id, product.name)}
+                              className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-colors"
+                              title="Remove product"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingDetails(editingDetails && editingDetails.id === product.id ? null : { ...product, sizes: product.available_sizes ? product.available_sizes.join(', ') : '' })}
-                          className="bg-green-100 hover:bg-green-200 text-green-600 p-2 rounded-lg transition-colors"
-                          title="Edit product details"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setEditingProduct(editingProduct === product.id ? null : product.id)}
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-600 p-2 rounded-lg transition-colors"
-                          title="Manage images"
-                        >
-                          <ImageIcon className="w-4 h-4" />
-                        </button>
-                        {product.is_deleted ? (
-                          <button
-                            onClick={() => handleRestoreProduct(product.id, product.name)}
-                            className="bg-green-100 hover:bg-green-200 text-green-600 p-2 rounded-lg transition-colors"
-                            title="Restore product"
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleDeleteProduct(product.id, product.name)}
-                            className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-lg transition-colors"
-                            title="Remove product"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Edit Details Section */}
-                    {editingDetails && editingDetails.id === product.id && (
-                      <div className="mt-4 pt-4 border-t">
-                        <h4 className="font-medium mb-3">Edit Product Details</h4>
-                        <form onSubmit={handleUpdateProduct} className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Edit Details Section */}
+                      {editingDetails && editingDetails.id === product.id && (
+                        <div className="mt-4 pt-4 border-t">
+                          <h4 className="font-medium mb-3">Edit Product Details</h4>
+                          <form onSubmit={handleUpdateProduct} className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium mb-1">Product Name</label>
+                                <input
+                                  type="text"
+                                  value={editingDetails.name}
+                                  onChange={e => setEditingDetails({ ...editingDetails, name: e.target.value })}
+                                  className="w-full p-2 border rounded"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium mb-1">Price ($)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={editingDetails.price}
+                                  onChange={e => setEditingDetails({ ...editingDetails, price: e.target.value })}
+                                  className="w-full p-2 border rounded"
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium mb-1">Stock</label>
+                                <input
+                                  type="number"
+                                  value={editingDetails.stock}
+                                  onChange={e => setEditingDetails({ ...editingDetails, stock: e.target.value })}
+                                  className="w-full p-2 border rounded"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium mb-1">Color</label>
+                                <input
+                                  type="text"
+                                  value={editingDetails.color || ''}
+                                  onChange={e => setEditingDetails({ ...editingDetails, color: e.target.value })}
+                                  className="w-full p-2 border rounded"
+                                  placeholder="e.g. Red, Blue, Black"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium mb-1">Category</label>
+                                <select
+                                  value={editingDetails.category}
+                                  onChange={e => setEditingDetails({ ...editingDetails, category: e.target.value })}
+                                  className="w-full p-2 border rounded bg-white"
+                                  required
+                                >
+                                  <option value="men">Men</option>
+                                  <option value="women">Women</option>
+                                  <option value="unisex">Unisex</option>
+                                  <option value="kids">Kids</option>
+                                  <option value="lifestyle">Lifestyle</option>
+                                  <option value="training">Training</option>
+                                  <option value="basketball">Basketball</option>
+                                  <option value="sale">Sale</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium mb-1">Sizes (comma separated)</label>
+                                <input
+                                  type="text"
+                                  value={editingDetails.sizes || ''}
+                                  onChange={e => setEditingDetails({ ...editingDetails, sizes: e.target.value })}
+                                  className="w-full p-2 border rounded"
+                                  placeholder="e.g. 40,41,42,43"
+                                />
+                              </div>
+                            </div>
                             <div>
-                              <label className="block text-sm font-medium mb-1">Product Name</label>
-                              <input
-                                type="text"
-                                value={editingDetails.name}
-                                onChange={e => setEditingDetails({ ...editingDetails, name: e.target.value })}
+                              <label className="block text-sm font-medium mb-1">Description</label>
+                              <textarea
+                                value={editingDetails.description}
+                                onChange={e => setEditingDetails({ ...editingDetails, description: e.target.value })}
                                 className="w-full p-2 border rounded"
-                                required
-                              />
+                                rows="3"
+                              ></textarea>
                             </div>
                             <div>
-                              <label className="block text-sm font-medium mb-1">Price ($)</label>
+                              <label className="block text-sm font-medium mb-1">Size Chart Image (optional) - Choose file or enter URL</label>
                               <input
-                                type="number"
-                                step="0.01"
-                                value={editingDetails.price}
-                                onChange={e => setEditingDetails({ ...editingDetails, price: e.target.value })}
-                                className="w-full p-2 border rounded"
-                                required
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files[0];
+                                  setEditingDetails({ ...editingDetails, sizeChartFile: file || null });
+                                }}
+                                className="w-full p-2 border rounded mb-2"
                               />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium mb-1">Stock</label>
-                              <input
-                                type="number"
-                                value={editingDetails.stock}
-                                onChange={e => setEditingDetails({ ...editingDetails, stock: e.target.value })}
-                                className="w-full p-2 border rounded"
-                                required
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium mb-1">Color</label>
-                              <input
-                                type="text"
-                                value={editingDetails.color || ''}
-                                onChange={e => setEditingDetails({ ...editingDetails, color: e.target.value })}
-                                className="w-full p-2 border rounded"
-                                placeholder="e.g. Red, Blue, Black"
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium mb-1">Category</label>
-                              <select
-                                value={editingDetails.category}
-                                onChange={e => setEditingDetails({ ...editingDetails, category: e.target.value })}
-                                className="w-full p-2 border rounded bg-white"
-                                required
-                              >
-                                <option value="men">Men</option>
-                                <option value="women">Women</option>
-                                <option value="unisex">Unisex</option>
-                                <option value="kids">Kids</option>
-                                <option value="lifestyle">Lifestyle</option>
-                                <option value="training">Training</option>
-                                <option value="basketball">Basketball</option>
-                                <option value="sale">Sale</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium mb-1">Sizes (comma separated)</label>
-                              <input
-                                type="text"
-                                value={editingDetails.sizes || ''}
-                                onChange={e => setEditingDetails({ ...editingDetails, sizes: e.target.value })}
-                                className="w-full p-2 border rounded"
-                                placeholder="e.g. 40,41,42,43"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Description</label>
-                            <textarea
-                              value={editingDetails.description}
-                              onChange={e => setEditingDetails({ ...editingDetails, description: e.target.value })}
-                              className="w-full p-2 border rounded"
-                              rows="3"
-                            ></textarea>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              type="submit"
-                              className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700"
-                            >
-                              Update Product
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingDetails(null)}
-                              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-300"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    )}
-
-                    {/* Image Management Section */}
-                    {editingProduct === product.id && (
-                      <div className="mt-4 pt-4 border-t">
-                        <h4 className="font-medium mb-3">Product Images ({productImages.length})</h4>
-
-                        {/* Current Images */}
-                        <div className="grid grid-cols-4 gap-3 mb-4">
-                          {productImages.map((imageUrl, index) => (
-                            <div key={index} className="relative group">
-                              <img
-                                src={imageUrl}
-                                alt={`${product.name} ${index + 1}`}
-                                className="w-full h-24 object-cover rounded-lg border"
-                              />
-                              <button
-                                onClick={() => handleRemoveImageFromProduct(product.id, imageUrl)}
-                                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Remove image"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                              {index === 0 && (
-                                <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
-                                  Main
+                              {editingDetails.sizeChartFile && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  Selected: {editingDetails.sizeChartFile.name}
+                                </p>
+                              )}
+                              {editingDetails.size_chart_url && !editingDetails.sizeChartFile && (
+                                <div className="mt-2 mb-2">
+                                  <img
+                                    src={editingDetails.size_chart_url}
+                                    alt="Current size chart"
+                                    className="w-full max-h-32 object-contain border rounded"
+                                  />
                                 </div>
                               )}
+                              <input
+                                type="text"
+                                value={editingDetails.size_chart_url || ''}
+                                onChange={e => setEditingDetails({ ...editingDetails, size_chart_url: e.target.value })}
+                                className="w-full p-2 border rounded"
+                                placeholder="Or enter URL: https://example.com/size-chart.jpg"
+                              />
                             </div>
-                          ))}
+                            <div className="flex gap-2">
+                              <button
+                                type="submit"
+                                className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700"
+                              >
+                                Update Product
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingDetails(null)}
+                                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-300"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
                         </div>
+                      )}
 
-                        {/* Add New Image */}
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files[0]) {
-                                handleAddImageToProduct(product.id, e.target.files[0]);
-                                e.target.value = ''; // Reset input
-                              }
-                            }}
-                            className="flex-1 p-2 border rounded text-sm"
-                          />
-                          <span className="text-sm text-gray-500">Add another image</span>
+                      {/* Image Management Section */}
+                      {editingProduct === product.id && (
+                        <div className="mt-4 pt-4 border-t">
+                          <h4 className="font-medium mb-3">Product Images ({productImages.length})</h4>
+
+                          {/* Current Images */}
+                          <div className="grid grid-cols-4 gap-3 mb-4">
+                            {productImages.map((imageUrl, index) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={imageUrl}
+                                  alt={`${product.name} ${index + 1}`}
+                                  className="w-full h-24 object-cover rounded-lg border"
+                                />
+                                <button
+                                  onClick={() => handleRemoveImageFromProduct(product.id, imageUrl)}
+                                  className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Remove image"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                                {index === 0 && (
+                                  <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
+                                    Main
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Add New Image */}
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                if (e.target.files[0]) {
+                                  handleAddImageToProduct(product.id, e.target.files[0]);
+                                  e.target.value = ''; // Reset input
+                                }
+                              }}
+                              className="flex-1 p-2 border rounded text-sm"
+                            />
+                            <span className="text-sm text-gray-500">Add another image</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>

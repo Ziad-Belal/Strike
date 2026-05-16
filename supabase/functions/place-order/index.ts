@@ -104,19 +104,36 @@ serve(async (req) => {
     const orderItemsList = items.map((i: any) => `${i.name || 'Item'}${i.size ? ` (Size: ${i.size})` : ''} x${i.qty} - EGP ${(Number(i.price) * Number(i.qty)).toFixed(2)}`).join('<br>')
     if (resendApiKey) {
       try {
+        // --- Admin Email: full customer details + order summary ---
         const adminRes = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
           body: JSON.stringify({
             from: 'onboarding@resend.dev',
             to: 'ziadbelal82@gmail.com',
-            subject: `Order from ${userInfo.full_name || userInfo.email || 'Customer'}`,
-            html: `<h2>New Order</h2><p><strong>Customer:</strong> ${userInfo.full_name || ''}</p><p><strong>Email:</strong> ${userInfo.email || ''}</p><p><strong>Phone:</strong> ${userInfo.phone || ''}</p><p><strong>Address:</strong> ${userInfo.address || ''}</p><p><strong>Subtotal:</strong> EGP ${subtotal.toFixed(2)}</p>${discount > 0 ? `<p><strong>Discount${promoCode ? ` (${promoCode})` : ''}:</strong> -EGP ${discount.toFixed(2)}</p>` : ''}<p><strong>Shipping:</strong> EGP ${shippingCost.toFixed(2)}</p><p><strong>Total:</strong> EGP ${total.toFixed(2)}</p><h3>Items</h3><div>${orderItemsList}</div><p>Order ID: ${orderId}</p>`
+            subject: `New Order from ${userInfo.full_name || userInfo.email || 'Customer'}`,
+            html: `
+              <h2 style="margin-top:0">New Order Received!</h2>
+              <p><strong>Full Name:</strong> ${userInfo.full_name || 'Not provided'}</p>
+              <p><strong>Email:</strong> ${userInfo.email || 'Not provided'}</p>
+              <p><strong>Phone:</strong> ${userInfo.phone || 'Not provided'}</p>
+              <p><strong>Address:</strong> ${userInfo.address || 'Not provided'}</p>
+              <hr>
+              <p><strong>Subtotal:</strong> EGP ${subtotal.toFixed(2)}</p>
+              ${discount > 0 ? `<p><strong>Discount${promoCode ? ` (${promoCode})` : ''}:</strong> -EGP ${discount.toFixed(2)}</p>` : ''}
+              <p><strong>Shipping:</strong> EGP ${shippingCost.toFixed(2)}</p>
+              <p style="font-size:18px;font-weight:bold"><strong>Total:</strong> EGP ${total.toFixed(2)}</p>
+              <hr>
+              <h3>Items Ordered</h3>
+              <div>${orderItemsList}</div>
+              <p style="margin-top:20px;color:#666">Order ID: ${orderId}</p>
+            `
           })
         })
         if (!adminRes.ok) {
           console.log('place-order: admin email error', await adminRes.text())
         }
+        // --- Customer Email: Order Confirmation ---
         if (userInfo?.email) {
           const customerRes = await fetch('https://api.resend.com/emails', {
             method: 'POST',
@@ -124,8 +141,18 @@ serve(async (req) => {
             body: JSON.stringify({
               from: 'onboarding@resend.dev',
               to: userInfo.email,
-              subject: 'Order Confirmation',
-              html: `<h2>Thank you for your order</h2><p>Hello ${userInfo.full_name || ''},</p><p>Your order has been received.</p><p><strong>Total:</strong> EGP ${total.toFixed(2)}</p><h3>Items</h3><div>${orderItemsList}</div><p>Order ID: ${orderId}</p>`
+              subject: 'Your Order Confirmation - Strike',
+              html: `
+                <h2 style="margin-top:0">Thank you for your order!</h2>
+                <p>Hello ${userInfo.full_name || ''},</p>
+                <p>Your order has been received and is being processed.</p>
+                <hr>
+                <p style="font-size:18px;font-weight:bold"><strong>Total:</strong> EGP ${total.toFixed(2)}</p>
+                <h3>Items</h3>
+                <div>${orderItemsList}</div>
+                <p style="margin-top:20px;color:#666">Order ID: ${orderId}</p>
+                <p style="color:#666">We'll send you a shipping confirmation email as soon as your order is on its way.</p>
+              `
             })
           })
           if (!customerRes.ok) {
