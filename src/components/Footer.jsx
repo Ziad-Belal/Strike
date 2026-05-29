@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Input, Button } from './atoms.jsx';
-import { supabase } from '../supabase'; // We need this
+import { supabaseAnon } from '../supabase';
 import { toast } from 'react-hot-toast';
 
 export default function Footer() {
@@ -14,7 +14,7 @@ export default function Footer() {
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     const { error } = await supabase.functions.invoke('send-feedback', {
       body: { email, message },
     });

@@ -44,13 +44,24 @@ export default function App() {
   const [pendingPromo, setPendingPromo] = useState(null);
 
   useEffect(() => {
-    // This correctly gets the initial session and listens for any changes.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+    const initializeSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.expires_at && session.expires_at * 1000 < Date.now()) {
+        await supabase.auth.signOut();
+        setSession(null);
+      } else {
+        setSession(session);
+      }
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    initializeSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'TOKEN_REFRESH_FAILED' || event === 'SIGNED_OUT') {
+        setSession(null);
+      } else {
+        setSession(session);
+      }
     });
 
     // This is the cleanup function to prevent memory leaks.
@@ -216,19 +227,26 @@ export default function App() {
       toast.error('Please select a size first.');
       return;
     }
-    if (product.stock <= 0) {
-      toast.error('This product is out of stock!');
+
+    // Get size stock
+    const sizeStock = product.size_stock || [{ size: (product.available_sizes && product.available_sizes[0]) || '', stock: product.stock || 0 }];
+    const selectedSizeStock = size ? sizeStock.find(ss => ss.size === size.toString()) : sizeStock[0];
+    const availableStock = selectedSizeStock ? selectedSizeStock.stock : product.stock || 0;
+
+    if (availableStock <= 0) {
+      toast.error(size ? `Size ${size} is out of stock!` : 'This product is out of stock!');
       return;
     }
+
     setCartItems(prev => {
       const existing = prev.find(i => i.id === product.id && i.size === size);
       const totalInCart = existing ? existing.qty + qty : qty;
-      
-      if (totalInCart > product.stock) {
-        toast.error(`Only ${product.stock} items available in stock!`);
+
+      if (totalInCart > availableStock) {
+        toast.error(`Only ${availableStock} items available for size ${size}!`);
         return prev;
       }
-      
+
       const newCart = existing
         ? prev.map(i => i.id === product.id && i.size === size ? { ...i, qty: i.qty + qty } : i)
         : [...prev, { ...product, size, qty }];

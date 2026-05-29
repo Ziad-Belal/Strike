@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../supabase';
+import { supabaseAnon } from '../supabase';
 import { Input, Button } from '../components/atoms.jsx';
 import { ShoppingCart, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -43,9 +43,13 @@ export default function ProductPage({ addToCart }) {
   const [modalImageUrl, setModalImageUrl] = useState(null);
 
   useEffect(() => {
-    supabase.from('products').select('*').eq('id', id).single()
+    supabaseAnon.from('products').select('*').eq('id', id).single()
       .then(({ data }) => {
         setProduct(data);
+        // Set default selected size if available
+        if (data?.available_sizes && data.available_sizes.length > 0) {
+          setSelectedSize(data.available_sizes[0]);
+        }
         setLoading(false);
       });
   }, [id]);
@@ -60,17 +64,27 @@ export default function ProductPage({ addToCart }) {
 
   const hasSizes = product.available_sizes && product.available_sizes.length > 0;
 
+  // Get size stock array
+  const sizeStock = product.size_stock || (product.available_sizes ? product.available_sizes.map(s => ({ size: s, stock: product.stock || 0 })) : []);
+
+  // Get current selected size's stock
+  const getCurrentSizeStock = () => {
+    const ss = sizeStock.find(s => s.size === selectedSize || s.size === String(selectedSize));
+    return ss ? ss.stock : 0;
+  };
+
   const handleAddToCart = () => {
     if (hasSizes && !selectedSize) {
       toast.error('Please select a size first.');
       return;
     }
-    if (product.stock <= 0) {
-      toast.error('This product is out of stock!');
+    const currentStock = getCurrentSizeStock();
+    if (currentStock <= 0) {
+      toast.error(selectedSize ? `Size ${selectedSize} is out of stock!` : 'This product is out of stock!');
       return;
     }
-    if (qty > product.stock) {
-      toast.error(`Only ${product.stock} items available in stock!`);
+    if (qty > currentStock) {
+      toast.error(`Only ${currentStock} items available for size ${selectedSize}!`);
       return;
     }
     addToCart(product, selectedSize, qty);
@@ -106,13 +120,13 @@ export default function ProductPage({ addToCart }) {
         <div className="flex flex-col">
           {/* Main Image */}
           <div className="relative mb-6 rounded-3xl overflow-hidden shadow-xl">
-            <img 
-              src={productImages[selectedImageIndex] || 'https://placehold.co/800x600'} 
-              alt={`${product.name} ${selectedImageIndex + 1}`} 
-              className='w-full rounded-3xl object-cover aspect-[4/3] max-h-[700px] cursor-pointer hover:opacity-95 transition-opacity' 
+            <img
+              src={productImages[selectedImageIndex] || 'https://placehold.co/800x600'}
+              alt={`${product.name} ${selectedImageIndex + 1}`}
+              className='w-full rounded-3xl object-cover aspect-[4/3] max-h-[700px] cursor-pointer hover:opacity-95 transition-opacity'
               onClick={() => openModal(productImages[selectedImageIndex])}
             />
-            
+
             {/* Navigation arrows (only show if more than 1 image) */}
             {productImages.length > 1 && (
               <>
@@ -128,7 +142,7 @@ export default function ProductPage({ addToCart }) {
                 >
                   <ChevronRight className="w-6 h-6" />
                 </button>
-                
+
                 {/* Image counter */}
                 <div className="absolute bottom-6 right-6 bg-black/70 text-white px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm">
                   {selectedImageIndex + 1} / {productImages.length}
@@ -143,21 +157,20 @@ export default function ProductPage({ addToCart }) {
               <button
                 key={index}
                 onClick={() => setSelectedImageIndex(index)}
-                className={`relative rounded-xl overflow-hidden aspect-square ${
-                  selectedImageIndex === index 
-                    ? 'ring-2 ring-black ring-offset-4 shadow-lg' 
-                    : 'opacity-70 hover:opacity-100 hover:shadow-md'
-                } transition-all`}
+                className={`relative rounded-xl overflow-hidden aspect-square ${selectedImageIndex === index
+                  ? 'ring-2 ring-black ring-offset-4 shadow-lg'
+                  : 'opacity-70 hover:opacity-100 hover:shadow-md'
+                  } transition-all`}
               >
-                <img 
-                  src={imageUrl} 
+                <img
+                  src={imageUrl}
                   alt={`${product.name} thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
               </button>
             ))}
           </div>
-          
+
           {/* Size Chart Display */}
           {product.size_chart_url && (
             <div className="mt-8">
@@ -192,17 +205,19 @@ export default function ProductPage({ addToCart }) {
             <div className='space-y-4'>
               <div className='text-sm font-bold text-gray-900'>Select Size</div>
               <div className='flex flex-wrap gap-3'>
-                {product.available_sizes.map(s => (
-                  <button 
-                    key={s} 
-                    onClick={() => setSelectedSize(s)} 
-                    className={`rounded-xl border-2 px-5 py-3 text-base font-semibold transition-all ${
-                      selectedSize===s
-                        ? 'border-black bg-black text-white shadow-lg'
+                {sizeStock.map((ss) => (
+                  <button
+                    key={ss.size}
+                    onClick={() => setSelectedSize(ss.size)}
+                    className={`rounded-xl border-2 px-5 py-3 text-base font-semibold transition-all ${String(selectedSize) === String(ss.size)
+                      ? 'border-black bg-black text-white shadow-lg'
+                      : ss.stock <= 0
+                        ? 'border-gray-200 text-gray-400 cursor-not-allowed opacity-50'
                         : 'border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-                    }`}
+                      }`}
+                    disabled={ss.stock <= 0}
                   >
-                    {s}
+                    {ss.size} {ss.stock <= 0 ? '(Out)' : `(${ss.stock})`}
                   </button>
                 ))}
               </div>
@@ -212,28 +227,28 @@ export default function ProductPage({ addToCart }) {
           <div className='flex items-center gap-4'>
             <div className="flex items-center gap-3">
               <label className='text-sm font-semibold text-gray-700'>Quantity</label>
-              <Input 
-                type='number' 
-                min={1} 
-                max={product.stock}
-                value={qty} 
-                onChange={(e)=> setQty(Math.max(1, Math.min(product.stock, Number(e.target.value))))} 
+              <Input
+                type='number'
+                min={1}
+                max={getCurrentSizeStock()}
+                value={qty}
+                onChange={(e) => setQty(Math.max(1, Math.min(getCurrentSizeStock(), Number(e.target.value))))}
                 className='w-24 text-center'
               />
             </div>
-            <span className={`text-sm font-semibold ${product.stock <= 0 ? 'text-red-600' : 'text-gray-600'}`}>
-              {product.stock <= 0 ? 'Out of stock' : `In stock: ${product.stock}`}
+            <span className={`text-sm font-semibold ${getCurrentSizeStock() <= 0 ? 'text-red-600' : 'text-gray-600'}`}>
+              {getCurrentSizeStock() <= 0 ? 'Out of stock' : `In stock: ${getCurrentSizeStock()}`}
             </span>
           </div>
 
           <div className='flex gap-4'>
-            <Button 
-              size='lg' 
-              onClick={handleAddToCart} 
+            <Button
+              size='lg'
+              onClick={handleAddToCart}
               className='gap-3 flex-1 text-base py-4 shadow-xl hover:shadow-2xl transition-shadow'
-              disabled={product.stock <= 0}
+              disabled={getCurrentSizeStock() <= 0}
             >
-              <ShoppingCart size={20}/> {product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
+              <ShoppingCart size={20} /> {getCurrentSizeStock() <= 0 ? 'Out of Stock' : 'Add to Cart'}
             </Button>
           </div>
 
@@ -242,10 +257,10 @@ export default function ProductPage({ addToCart }) {
           </div>
         </div>
       </div>
-      
-      {isModalOpen && <ImageModal 
+
+      {isModalOpen && <ImageModal
         imageUrl={modalImageUrl}
-        onClose={closeModal} 
+        onClose={closeModal}
       />}
     </div>
   );

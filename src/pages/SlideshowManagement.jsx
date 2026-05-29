@@ -1,9 +1,11 @@
 // src/pages/SlideshowManagement.jsx
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import { supabaseAnon } from '../supabase';
 import { toast } from 'react-hot-toast';
 import { Upload, X, Eye, EyeOff, MoveUp, MoveDown } from 'lucide-react';
+
+const supabase = supabaseAnon;
 
 export default function SlideshowManagement() {
   const [slides, setSlides] = useState([]);
@@ -67,7 +69,7 @@ export default function SlideshowManagement() {
 
     if (imageUrl) {
       const maxOrder = slides.length > 0 ? Math.max(...slides.map(s => s.display_order)) : 0;
-      
+
       const { data, error } = await supabase
         .from('slideshow_images')
         .insert([
@@ -129,7 +131,7 @@ export default function SlideshowManagement() {
   const moveSlide = async (id, direction) => {
     const slideIndex = slides.findIndex(s => s.id === id);
     const targetIndex = direction === 'up' ? slideIndex - 1 : slideIndex + 1;
-    
+
     if (targetIndex < 0 || targetIndex >= slides.length) return;
 
     const slide = slides[slideIndex];
@@ -189,8 +191,8 @@ export default function SlideshowManagement() {
               <div className="flex gap-6">
                 {/* Image Preview */}
                 <div className="w-32 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                  <img 
-                    src={slide.image_url} 
+                  <img
+                    src={slide.image_url}
                     alt={slide.title}
                     className="w-full h-full object-cover"
                   />
@@ -227,7 +229,7 @@ export default function SlideshowManagement() {
                   >
                     {slide.is_active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
-                  
+
                   <button
                     onClick={() => moveSlide(slide.id, 'up')}
                     disabled={index === 0}
@@ -236,7 +238,7 @@ export default function SlideshowManagement() {
                   >
                     <MoveUp className="w-4 h-4" />
                   </button>
-                  
+
                   <button
                     onClick={() => moveSlide(slide.id, 'down')}
                     disabled={index === slides.length - 1}
@@ -245,7 +247,7 @@ export default function SlideshowManagement() {
                   >
                     <MoveDown className="w-4 h-4" />
                   </button>
-                  
+
                   <button
                     onClick={() => deleteSlide(slide.id)}
                     className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"

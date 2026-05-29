@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, User, Search, Menu, X } from 'lucide-react';
 import { Modal, Button, Input, Badge } from './atoms.jsx';
-import { supabase } from '../supabase';
+import { supabase, supabaseAnon } from '../supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/Screenshot 2025-09-15 171641.png';
 
@@ -186,7 +186,9 @@ function SearchModal({ open, onClose }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (q.length > 2) {
-        supabase.from('products').select('*').textSearch('name', q, { type: 'plain' })
+        supabaseAnon.from('products').select('*')
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .textSearch('name', q, { type: 'plain' })
           .then(({ data }) => setResults(data || []));
       } else {
         setResults([]);

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import { supabaseAnon } from '../supabase';
 import { toast } from 'react-hot-toast';
 import { Trash2, Plus, Package, Upload, X, Image as ImageIcon, Edit, RotateCcw } from 'lucide-react';
+
+const supabase = supabaseAnon;
 
 const ADMIN_PASSWORD = "StrikeSports";
 
@@ -14,9 +16,7 @@ export default function AdminPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('');
   const [sizes, setSizes] = useState('');
-  const [color, setColor] = useState(''); // NEW: Color state
   const [category, setCategory] = useState('men');
   const [imageFiles, setImageFiles] = useState([]);
   const [sizeChartFile, setSizeChartFile] = useState(null);
@@ -29,6 +29,7 @@ export default function AdminPage() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingDetails, setEditingDetails] = useState(null);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [sizeStock, setSizeStock] = useState([{ size: '', stock: '' }]);
 
   // Promo code states
   const [promoCode, setPromoCode] = useState('');
@@ -98,6 +99,46 @@ export default function AdminPage() {
     setSizeChartFile(file || null);
   };
 
+  const normalizeStockValue = (value) => {
+    if (value === '' || value === null || value === undefined) return '';
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return '';
+    return Math.max(0, Math.floor(parsed));
+  };
+
+  // Sync size stock rows when sizes input changes
+  const handleSizesChange = (value) => {
+    setSizes(value);
+    const parsed = value.split(',').map(s => s.trim()).filter(Boolean);
+    if (parsed.length === 0) return;
+    setSizeStock(prev => {
+      // Keep existing stock values for sizes that already exist
+      const existing = {};
+      prev.forEach(ss => { if (ss.size) existing[ss.size] = ss.stock; });
+      return parsed.map(s => ({ size: s, stock: existing[s] !== undefined ? existing[s] : '' }));
+    });
+  };
+
+  // Handle size stock changes
+  const handleSizeStockChange = (index, field, value) => {
+    const newSizeStock = [...sizeStock];
+    newSizeStock[index][field] = field === 'stock' ? normalizeStockValue(value) : value;
+    setSizeStock(newSizeStock);
+  };
+
+  // Add new size stock entry
+  const addSizeStockEntry = () => {
+    setSizeStock([...sizeStock, { size: '', stock: '' }]);
+  };
+
+  // Remove size stock entry
+  const removeSizeStockEntry = (index) => {
+    if (sizeStock.length > 1) {
+      const newSizeStock = sizeStock.filter((_, i) => i !== index);
+      setSizeStock(newSizeStock);
+    }
+  };
+
   // Add product with multiple images
   const handleAddProduct = async (e) => {
     e.preventDefault();
@@ -122,38 +163,79 @@ export default function AdminPage() {
       // Prepare sizes array
       const available_sizes = sizes.split(',').map(s => s.trim()).filter(Boolean);
 
-      // Insert product into DB with multiple images and color
-      const { error: insertError } = await supabase.from('products').insert([{
+      // Process size stock - filter out empty entries and parse stock to number
+      const processedSizeStock = sizeStock
+        .filter(ss => ss.size.trim() !== '' && ss.stock.trim() !== '')
+        .map(ss => ({
+          size: ss.size.trim(),
+          stock: parseInt(ss.stock.trim()) || 0
+        }));
+
+      // Calculate total stock (sum of all size stocks)
+      const totalStock = processedSizeStock.reduce((sum, ss) => sum + ss.stock, 0);
+
+      // Insert product into DB with multiple images and size stock
+      const productData = {
         name,
         description,
         price: parseFloat(price),
-        stock: parseInt(stock),
+        stock: totalStock,
         category,
-        color,
+        color: '',
         image_url: imageUrls[0],
         image_urls: imageUrls,
         available_sizes,
         size_chart_url: finalSizeChartUrl,
-        // Removed: is_deleted: false
-      }]);
+      };
 
-      if (insertError) {
-        toast.error('Error adding product: ' + insertError.message);
-      } else {
+      // Only add size_stock if we have it
+      if (processedSizeStock.length > 0) {
+        productData.size_stock = processedSizeStock;
+      }
+
+      try {
+        const { error: insertError } = await supabase.from('products').insert([productData]);
+        if (insertError) throw insertError;
         toast.success('Product added successfully!');
         // Reset form
         setName('');
         setDescription('');
         setPrice('');
-        setStock('');
-        setCategory('men');
-        setColor('');
         setSizes('');
+        setCategory('men');
         setImageFiles([]);
         setSizeChartFile(null);
         setSizeChartUrl('');
+        setSizeStock([{ size: '', stock: '' }]);
         e.target.reset();
         fetchProducts();
+      } catch (err) {
+        // If DB doesn't have size_stock column, retry without it and notify admin
+        const msg = err?.message || '';
+        if (msg.includes('size_stock') || msg.includes("Could not find the 'size_stock'")) {
+          try {
+            const { size_stock, ...withoutSizeStock } = productData;
+            const { error: retryError } = await supabase.from('products').insert([withoutSizeStock]);
+            if (retryError) throw retryError;
+            toast.success('Product added without size_stock (DB column missing). Run migration to enable size-specific stock.');
+            // Reset form
+            setName('');
+            setDescription('');
+            setPrice('');
+            setSizes('');
+            setCategory('men');
+            setImageFiles([]);
+            setSizeChartFile(null);
+            setSizeChartUrl('');
+            setSizeStock([{ size: '', stock: '' }]);
+            e.target.reset();
+            fetchProducts();
+          } catch (retryErr) {
+            toast.error('Error adding product: ' + (retryErr?.message || retryErr));
+          }
+        } else {
+          toast.error('Error adding product: ' + (msg || err));
+        }
       }
     } catch (error) {
       toast.error('Error uploading images: ' + error.message);
@@ -292,26 +374,68 @@ export default function AdminPage() {
       finalSizeChartUrl = sizeChartUrlFromStorage;
     }
 
-    const { error } = await supabase
-      .from('products')
-      .update({
-        name: product.name,
-        description: product.description,
-        price: parseFloat(product.price),
-        stock: parseInt(product.stock),
-        category: product.category,
-        color: product.color,
-        available_sizes,
-        size_chart_url: finalSizeChartUrl,
-      })
-      .eq('id', product.id);
+    const parseStock = (stock) => {
+      if (typeof stock === 'number') return Math.max(0, Math.floor(stock));
+      if (stock === '' || stock === null || stock === undefined) return 0;
+      const parsed = Number(stock.toString().trim());
+      return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
+    };
 
-    if (error) {
-      toast.error('Error updating product: ' + error.message);
-    } else {
+    // Process size stock for edit
+    const processedSizeStock = (product.size_stock || [])
+      .filter(ss => ss.size.trim() !== '' && ss.stock !== '' && ss.stock !== null && ss.stock !== undefined)
+      .map(ss => ({
+        size: ss.size.trim(),
+        stock: parseStock(ss.stock)
+      }));
+
+    // Calculate total stock
+    const totalStock = processedSizeStock.reduce((sum, ss) => sum + ss.stock, 0);
+
+    const updateData = {
+      name: product.name,
+      description: product.description,
+      price: parseFloat(product.price),
+      stock: totalStock,
+      category: product.category,
+      color: '',
+      available_sizes,
+      size_chart_url: finalSizeChartUrl,
+    };
+
+    // Only add size_stock if we have it
+    if (processedSizeStock.length > 0) {
+      updateData.size_stock = processedSizeStock;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update(updateData)
+        .eq('id', product.id);
+      if (error) throw error;
       toast.success('Product updated successfully!');
       setEditingDetails(null);
       fetchProducts();
+    } catch (err) {
+      const msg = err?.message || '';
+      if (msg.includes('size_stock') || msg.includes("Could not find the 'size_stock'")) {
+        try {
+          const { size_stock, ...withoutSizeStock } = updateData;
+          const { error: retryError } = await supabase
+            .from('products')
+            .update(withoutSizeStock)
+            .eq('id', product.id);
+          if (retryError) throw retryError;
+          toast.success('Product updated (without size_stock). DB column missing. Run migration to enable size-specific stock.');
+          setEditingDetails(null);
+          fetchProducts();
+        } catch (retryErr) {
+          toast.error('Error updating product: ' + (retryErr?.message || retryErr));
+        }
+      } else {
+        toast.error('Error updating product: ' + (msg || err));
+      }
     }
   };
 
@@ -478,16 +602,8 @@ export default function AdminPage() {
                 <label className="block text-sm font-medium mb-1">Price (EGP)</label>
                 <input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="w-full p-2 border rounded" required />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Stock</label>
-                <input type="number" value={stock} onChange={e => setStock(e.target.value)} className="w-full p-2 border rounded" required />
-              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Color</label>
-                <input type="text" value={color} onChange={e => setColor(e.target.value)} className="w-full p-2 border rounded" placeholder="e.g. Red, Blue, Black" required />
-              </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Category</label>
                 <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border rounded bg-white" required>
@@ -504,7 +620,53 @@ export default function AdminPage() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Sizes (comma separated)</label>
-              <input type="text" value={sizes} onChange={e => setSizes(e.target.value)} className="w-full p-2 border rounded" placeholder="e.g. 40,41,42,43" required />
+              <input type="text" value={sizes} onChange={e => handleSizesChange(e.target.value)} className="w-full p-2 border rounded" placeholder="e.g. 40,41,42,43" required />
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium">Stock per Size</label>
+                <button
+                  type="button"
+                  onClick={addSizeStockEntry}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                >
+                  + Add Row
+                </button>
+              </div>
+              {sizeStock.length === 0 && (
+                <p className="text-sm text-gray-400 italic">Enter sizes above to auto-populate rows.</p>
+              )}
+              {sizeStock.map((ss, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <div className="flex-1 p-2 border rounded bg-gray-50 text-sm font-medium text-gray-700">
+                    Size {ss.size || '—'}
+                  </div>
+                  <input
+                    type="number"
+                    value={ss.stock}
+                    onChange={(e) => handleSizeStockChange(index, 'stock', e.target.value)}
+                    className="w-32 p-2 border rounded"
+                    placeholder="Stock"
+                    min="0"
+                  />
+                  {sizeStock.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeSizeStockEntry(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              {sizeStock.length > 0 && (
+                <div className="flex justify-end pt-1 border-t">
+                  <span className="text-sm font-semibold text-gray-700">
+                    Total Stock: {sizeStock.reduce((sum, ss) => sum + (parseInt(ss.stock) || 0), 0)}
+                  </span>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Product Images (Multiple)</label>
@@ -621,7 +783,14 @@ export default function AdminPage() {
                         {/* Actions */}
                         <div className="flex gap-2">
                           <button
-                            onClick={() => setEditingDetails(editingDetails && editingDetails.id === product.id ? null : { ...product, sizes: product.available_sizes ? product.available_sizes.join(', ') : '', size_chart_url: product.size_chart_url })}
+                            onClick={() => setEditingDetails(editingDetails && editingDetails.id === product.id ? null : {
+                              ...product,
+                              sizes: product.available_sizes ? product.available_sizes.join(', ') : '',
+                              size_chart_url: product.size_chart_url,
+                              size_stock: (product.size_stock && product.size_stock.length > 0)
+                                ? product.size_stock
+                                : (product.available_sizes || []).map(s => ({ size: String(s), stock: '' }))
+                            })}
                             className="bg-green-100 hover:bg-green-200 text-green-600 p-2 rounded-lg transition-colors"
                             title="Edit product details"
                           >
@@ -671,7 +840,7 @@ export default function AdminPage() {
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium mb-1">Price ($)</label>
+                                <label className="block text-sm font-medium mb-1">Price (EGP)</label>
                                 <input
                                   type="number"
                                   step="0.01"
@@ -679,28 +848,6 @@ export default function AdminPage() {
                                   onChange={e => setEditingDetails({ ...editingDetails, price: e.target.value })}
                                   className="w-full p-2 border rounded"
                                   required
-                                />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium mb-1">Stock</label>
-                                <input
-                                  type="number"
-                                  value={editingDetails.stock}
-                                  onChange={e => setEditingDetails({ ...editingDetails, stock: e.target.value })}
-                                  className="w-full p-2 border rounded"
-                                  required
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium mb-1">Color</label>
-                                <input
-                                  type="text"
-                                  value={editingDetails.color || ''}
-                                  onChange={e => setEditingDetails({ ...editingDetails, color: e.target.value })}
-                                  className="w-full p-2 border rounded"
-                                  placeholder="e.g. Red, Blue, Black"
                                 />
                               </div>
                             </div>
@@ -728,11 +875,55 @@ export default function AdminPage() {
                                 <input
                                   type="text"
                                   value={editingDetails.sizes || ''}
-                                  onChange={e => setEditingDetails({ ...editingDetails, sizes: e.target.value })}
+                                  onChange={e => {
+                                    const newSizes = e.target.value;
+                                    const parsed = newSizes.split(',').map(s => s.trim()).filter(Boolean);
+                                    const existing = {};
+                                    (editingDetails.size_stock || []).forEach(ss => { if (ss.size) existing[ss.size] = ss.stock; });
+                                    const newSizeStock = parsed.length > 0
+                                      ? parsed.map(s => ({ size: s, stock: existing[s] !== undefined ? existing[s] : '' }))
+                                      : editingDetails.size_stock || [];
+                                    setEditingDetails({ ...editingDetails, sizes: newSizes, size_stock: newSizeStock });
+                                  }}
                                   className="w-full p-2 border rounded"
                                   placeholder="e.g. 40,41,42,43"
                                 />
                               </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium">Stock per Size</label>
+                              </div>
+                              {(editingDetails.size_stock || []).length === 0 && (
+                                <p className="text-sm text-gray-400 italic">Enter sizes above to populate rows.</p>
+                              )}
+                              {(editingDetails.size_stock || []).map((ss, index) => (
+                                <div key={index} className="flex items-center gap-3">
+                                  <div className="flex-1 p-2 border rounded bg-gray-50 text-sm font-medium text-gray-700">
+                                    Size {ss.size || '—'}
+                                  </div>
+                                  <input
+                                    type="number"
+                                    value={ss.stock}
+                                    onChange={(e) => {
+                                      const newSizeStock = [...(editingDetails.size_stock || [])];
+                                      newSizeStock[index] = { ...ss, stock: normalizeStockValue(e.target.value) };
+                                      setEditingDetails({ ...editingDetails, size_stock: newSizeStock });
+                                    }}
+                                    className="w-32 p-2 border rounded"
+                                    placeholder="Stock"
+                                    min="0"
+                                    step="1"
+                                  />
+                                </div>
+                              ))}
+                              {(editingDetails.size_stock || []).length > 0 && (
+                                <div className="flex justify-end pt-1 border-t">
+                                  <span className="text-sm font-semibold text-gray-700">
+                                    Total Stock: {(editingDetails.size_stock || []).reduce((sum, ss) => sum + (parseInt(ss.stock) || 0), 0)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                             <div>
                               <label className="block text-sm font-medium mb-1">Description</label>

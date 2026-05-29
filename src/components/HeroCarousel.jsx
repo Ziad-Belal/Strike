@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'; // Changed to useState and useEffect
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../supabase'; // Import Supabase client
+import { supabaseAnon } from '../supabase'; // Use public anon Supabase client for public product slides
 
 // --- THIS IS THE ONLY PART THAT HAS CHANGED ---
 // The hardcoded 'slides' array is now gone.
@@ -17,7 +17,7 @@ export default function HeroCarousel() {
   // This useEffect fetches your newest products to use as slides.
   useEffect(() => {
     const fetchSlides = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAnon
         .from('products')
         .select('id, name, description, image_url, category') // Fetch all the data we need
         .not('image_url', 'is', null) // Only get products that have an image
@@ -56,14 +56,14 @@ export default function HeroCarousel() {
   if (loading || slides.length === 0) {
     return <div className='relative h-[56vh] min-h-[380px] w-full bg-gray-200'></div>;
   }
-  
+
   // This is your original, beautiful carousel code. It is UNCHANGED.
   const s = slides[i];
   return (
     <div className='relative h-[56vh] min-h-[380px] w-full overflow-hidden'>
       <AnimatePresence mode='wait'>
         <motion.img key={s.id} src={s.img} alt='hero' className='absolute inset-0 h-full w-full object-cover'
-          initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: .6 }}/>
+          initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: .6 }} />
       </AnimatePresence>
       <div className='absolute inset-0 bg-gradient-to-t from-black/60 to-transparent' />
       <div className='absolute bottom-8 left-1/2 w-[min(96vw,1100px)] -translate-x-1/2 px-4'>

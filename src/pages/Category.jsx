@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import ProductGrid from '../components/ProductGrid.jsx'
 import Filters from '../components/Filters.jsx'
-import { supabase } from '../supabase'
+import { supabaseAnon } from '../supabase'
 
 export default function Category({ category }) {
   const [products, setProducts] = useState([])
@@ -17,12 +17,12 @@ export default function Category({ category }) {
 
   const fetchProducts = async () => {
     setLoading(true)
-    
+
     try {
-      let query = supabase
+      let query = supabaseAnon
         .from('products')
         .select('*')
-        .eq('is_deleted', false) // Only show non-deleted products
+        .or('is_deleted.is.null,is_deleted.eq.false') // Only show non-deleted products
 
       // Handle "New Arrivals" specially - show newest products from all categories
       if (category === 'new') {
@@ -38,28 +38,22 @@ export default function Category({ category }) {
         console.error('Error fetching products:', error)
         setProducts([])
       } else {
-        // Apply client-side filtering for size and color
+        // Apply client-side filtering for size
         let filteredProducts = (data || []).filter(product => product && !product.is_deleted)
-        
+
         if (filters?.size) {
-          filteredProducts = filteredProducts.filter(product => 
+          filteredProducts = filteredProducts.filter(product =>
             product.available_sizes && Array.isArray(product.available_sizes) && product.available_sizes.includes(filters.size)
           )
         }
-        
-        if (filters?.color) {
-          filteredProducts = filteredProducts.filter(product => 
-            product.color && typeof product.color === 'string' && product.color.toLowerCase().includes(filters.color.toLowerCase())
-          )
-        }
-        
+
         setProducts(filteredProducts)
       }
     } catch (error) {
       console.error('Error in fetchProducts:', error)
       setProducts([])
     }
-    
+
     setLoading(false)
   }
 
@@ -81,7 +75,7 @@ export default function Category({ category }) {
           <p className='text-gray-600 mt-2'>Our latest products from all categories</p>
         )}
       </div>
-      
+
       <div className='grid gap-8 lg:grid-cols-[250px_1fr]'>
         <Filters filters={filters} onFilterChange={setFilters} />
         <div>

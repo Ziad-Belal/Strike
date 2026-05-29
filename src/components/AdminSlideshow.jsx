@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { supabase } from '../supabase';
+import { supabaseAnon } from '../supabase';
 
 export default function AdminSlideshow() {
   const [slides, setSlides] = useState([]);
@@ -15,7 +15,7 @@ export default function AdminSlideshow() {
   }, []);
 
   const fetchSlides = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAnon
       .from('slideshow_images')
       .select('*')
       .eq('is_active', true)
@@ -142,11 +142,10 @@ export default function AdminSlideshow() {
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === currentIndex 
-                  ? 'bg-white w-8' 
+              className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
+                  ? 'bg-white w-8'
                   : 'bg-white/50 hover:bg-white/70'
-              }`}
+                }`}
             />
           ))}
         </div>

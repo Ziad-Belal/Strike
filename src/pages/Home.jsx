@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import AdminSlideshow from '../components/AdminSlideshow.jsx'  // Replace HeroCarousel import
 import ProductGrid from '../components/ProductGrid.jsx'
-import { supabase } from '../supabase' 
+import { supabaseAnon } from '../supabase'
 
 export default function Home() {
   // 1. State to store the products
@@ -15,10 +15,10 @@ export default function Home() {
     async function getProducts() {
       setLoading(true) // Start loading
       // 3. The Supabase query
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAnon
         .from('products')
         .select('*')
-        .eq('is_deleted', false)
+        .or('is_deleted.is.null,is_deleted.eq.false')
         .order('created_at', { ascending: false })
         .limit(8) // Let's get the 8 most recent products for the homepage for now
 

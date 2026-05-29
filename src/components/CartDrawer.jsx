@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { Sheet, Button } from './atoms.jsx'
-import { supabase } from '../supabase'
+import { supabaseAnon } from '../supabase'
 import { toast } from 'react-hot-toast'
 
 // Assuming you have a currency helper, otherwise we can use a simple formatter.
@@ -18,7 +18,7 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
 
   const subtotal = items.reduce((sum, it) => sum + it.price * it.qty, 0);
   const discount = appliedPromo ? (
-    appliedPromo.discount_type === 'percentage' 
+    appliedPromo.discount_type === 'percentage'
       ? subtotal * (appliedPromo.discount_value / 100)
       : Math.min(appliedPromo.discount_value, subtotal)
   ) : 0;
@@ -37,7 +37,7 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
 
     setPromoLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAnon
         .from('promo_codes')
         .select('*')
         .eq('code', promoCode.toUpperCase())
@@ -95,36 +95,39 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
           <div className='text-center py-16 space-y-4'>
             <div className='text-6xl'>🛒</div>
             <div className='text-lg text-gray-600'>Your cart is empty.</div>
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               className='text-sm text-black font-semibold underline underline-offset-4 hover:no-underline'
             >
               Continue shopping
             </button>
           </div>
         )}
-        
+
         {items.map((it, idx) => {
-          const productImage = it.image_urls && it.image_urls.length > 0 
-            ? it.image_urls[0] 
+          const productImage = it.image_urls && it.image_urls.length > 0
+            ? it.image_urls[0]
             : it.image_url || placeholderImg;
-          
+
           return (
-            <div 
-              key={`${it.id}-${it.size}`} 
+            <div
+              key={`${it.id}-${it.size}`}
               className='flex gap-4 rounded-2xl border border-gray-100 p-4 bg-white shadow-sm hover:shadow-md transition-shadow'
             >
-              <img 
+              <img
                 src={productImage}
-                alt={it.name} 
+                alt={it.name}
                 className='h-24 w-24 rounded-xl object-cover'
               />
               <div className='flex-1'>
                 <div className='font-semibold text-gray-900'>{it.name || 'Product'}</div>
-                <div className='text-sm text-gray-500 mt-1'>{it.size ? `Size: ${it.size} • ` : ''}Qty: {it.qty}</div>
+                <div className='text-sm text-gray-500 mt-1'>
+                  {it.size ? `Size: ${it.size} • ` : ''}
+                  Qty: {it.qty}
+                </div>
                 <div className='text-sm font-bold text-gray-900 mt-2'>{currency(it.price * it.qty)}</div>
               </div>
-              <button 
+              <button
                 className='text-gray-400 hover:text-red-500 transition-colors'
                 onClick={() => removeItem(it)}
                 title="Remove item"
@@ -135,7 +138,7 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
           );
         })}
       </div>
-      
+
       {items.length > 0 && (
         <div className='mt-8 rounded-2xl bg-gray-50 p-6 shadow-inner'>
           <div className='mb-6'>
@@ -150,8 +153,8 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
                   className='flex-1 p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all'
                   onKeyPress={(e) => e.key === 'Enter' && applyPromoCode()}
                 />
-                <Button 
-                  onClick={applyPromoCode} 
+                <Button
+                  onClick={applyPromoCode}
                   disabled={promoLoading}
                   className='px-6 py-3'
                 >
@@ -163,13 +166,13 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
                 <div className='flex items-center gap-3'>
                   <span className='text-green-700 font-bold'>{appliedPromo.code}</span>
                   <span className='text-sm text-green-700'>
-                    {appliedPromo.discount_type === 'percentage' 
+                    {appliedPromo.discount_type === 'percentage'
                       ? `${appliedPromo.discount_value}% off`
                       : `EGP ${appliedPromo.discount_value} off`
                     }
                   </span>
                 </div>
-                <button 
+                <button
                   onClick={removePromoCode}
                   className='text-green-700 hover:text-green-900 text-sm font-semibold'
                 >
@@ -200,8 +203,8 @@ export default function CartDrawer({ open, onClose, items, removeItem, onCheckou
               <span>{currency(total)}</span>
             </div>
           </div>
-          <Button 
-            onClick={() => onCheckout(appliedPromo)} 
+          <Button
+            onClick={() => onCheckout(appliedPromo)}
             className='mt-8 w-full text-base py-4 shadow-xl hover:shadow-2xl transition-shadow'
           >
             Proceed to Checkout
