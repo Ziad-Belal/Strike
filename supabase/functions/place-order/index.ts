@@ -78,7 +78,7 @@ serve(async (req) => {
       if (itemErr) {
         console.log('place-order: order_items insert error', itemErr)
       }
-      const { data: p } = await writeClient.from('products').select('stock').eq('id', pid).single()
+      const { data: p } = await writeClient.from('products').select('stock, size_stock').eq('id', pid).single()
       if (!p || typeof p.stock !== 'number') {
         return new Response(JSON.stringify({ error: 'Product unavailable or stock not set' }), {
           headers: { ...baseCors, 'Content-Type': 'application/json' },
@@ -93,7 +93,21 @@ serve(async (req) => {
         })
       }
       const newStock = Math.max(0, p.stock - requested)
-      const { error: stockErr } = await writeClient.from('products').update({ stock: newStock }).eq('id', pid)
+
+      // Also decrement the specific size in size_stock
+      let updatedSizeStock = p.size_stock;
+      if (Array.isArray(updatedSizeStock) && item.size) {
+        updatedSizeStock = updatedSizeStock.map((ss: any) =>
+          String(ss.size) === String(item.size)
+            ? { ...ss, stock: Math.max(0, (ss.stock || 0) - requested) }
+            : ss
+        );
+      }
+
+      const stockPayload: any = { stock: newStock };
+      if (updatedSizeStock) stockPayload.size_stock = updatedSizeStock;
+
+      const { error: stockErr } = await writeClient.from('products').update(stockPayload).eq('id', pid)
       if (stockErr) {
         console.log('place-order: stock update error', stockErr)
       }

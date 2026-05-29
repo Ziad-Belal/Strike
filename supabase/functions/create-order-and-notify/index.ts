@@ -177,7 +177,7 @@ serve(async (req) => {
       if (productId) {
         const { data: productData, error: productError } = await supabaseAdmin
           .from('products')
-          .select('stock')
+          .select('stock, size_stock')
           .eq('id', productId)
           .single()
 
@@ -185,9 +185,23 @@ serve(async (req) => {
           console.error(`Error fetching product ${productId} for stock update:`, productError);
         } else if (productData) {
           const newStock = Math.max(0, (productData.stock || 0) - parseInt(item.qty));
+
+          // Also decrement the specific size in size_stock
+          let updatedSizeStock = productData.size_stock;
+          if (Array.isArray(updatedSizeStock) && item.size) {
+            updatedSizeStock = updatedSizeStock.map((ss: any) =>
+              String(ss.size) === String(item.size)
+                ? { ...ss, stock: Math.max(0, (ss.stock || 0) - parseInt(item.qty)) }
+                : ss
+            );
+          }
+
+          const updatePayload: any = { stock: newStock };
+          if (updatedSizeStock) updatePayload.size_stock = updatedSizeStock;
+
           const { error: updateStockError } = await supabaseAdmin
             .from('products')
-            .update({ stock: newStock })
+            .update(updatePayload)
             .eq('id', productId);
 
           if (updateStockError) {
