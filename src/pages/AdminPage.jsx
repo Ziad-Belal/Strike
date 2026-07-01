@@ -17,6 +17,7 @@ export default function AdminPage() {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [sizes, setSizes] = useState('');
+  const [colors, setColors] = useState('');
   const [category, setCategory] = useState('men');
   const [imageFiles, setImageFiles] = useState([]);
   const [sizeChartFile, setSizeChartFile] = useState(null);
@@ -163,6 +164,9 @@ export default function AdminPage() {
       // Prepare sizes array
       const available_sizes = sizes.split(',').map(s => s.trim()).filter(Boolean);
 
+      // Prepare colors array
+      const available_colors = colors.split(',').map(c => c.trim()).filter(Boolean);
+
       // Process size stock - filter out empty entries and parse stock to number
       const processedSizeStock = sizeStock
         .filter(ss => String(ss.size).trim() !== '' && ss.stock !== '' && ss.stock !== null && ss.stock !== undefined)
@@ -182,6 +186,7 @@ export default function AdminPage() {
         stock: totalStock,
         category,
         color: '',
+        colors: available_colors,
         image_url: imageUrls[0],
         image_urls: imageUrls,
         available_sizes,
@@ -202,6 +207,7 @@ export default function AdminPage() {
         setDescription('');
         setPrice('');
         setSizes('');
+        setColors('');
         setCategory('men');
         setImageFiles([]);
         setSizeChartFile(null);
@@ -223,6 +229,7 @@ export default function AdminPage() {
             setDescription('');
             setPrice('');
             setSizes('');
+            setColors('');
             setCategory('men');
             setImageFiles([]);
             setSizeChartFile(null);
@@ -399,6 +406,7 @@ export default function AdminPage() {
       stock: totalStock,
       category: product.category,
       color: '',
+      colors: (product.colors_input || '').split(',').map(c => c.trim()).filter(Boolean),
       available_sizes,
       size_chart_url: finalSizeChartUrl,
     };
@@ -622,6 +630,10 @@ export default function AdminPage() {
               <label className="block text-sm font-medium mb-1">Sizes (comma separated)</label>
               <input type="text" value={sizes} onChange={e => handleSizesChange(e.target.value)} className="w-full p-2 border rounded" placeholder="e.g. 40,41,42,43" required />
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Colors (comma separated)</label>
+              <input type="text" value={colors} onChange={e => setColors(e.target.value)} className="w-full p-2 border rounded" placeholder="e.g. Black, White, Red" />
+            </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block text-sm font-medium">Stock per Size</label>
@@ -786,6 +798,7 @@ export default function AdminPage() {
                             onClick={() => setEditingDetails(editingDetails && editingDetails.id === product.id ? null : {
                               ...product,
                               sizes: product.available_sizes ? product.available_sizes.join(', ') : '',
+                              colors_input: product.colors ? product.colors.join(', ') : '',
                               size_chart_url: product.size_chart_url,
                               size_stock: (product.size_stock && product.size_stock.length > 0)
                                 ? product.size_stock
@@ -889,6 +902,16 @@ export default function AdminPage() {
                                   placeholder="e.g. 40,41,42,43"
                                 />
                               </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Colors (comma separated)</label>
+                              <input
+                                type="text"
+                                value={editingDetails.colors_input || ''}
+                                onChange={e => setEditingDetails({ ...editingDetails, colors_input: e.target.value })}
+                                className="w-full p-2 border rounded"
+                                placeholder="e.g. Black, White, Red"
+                              />
                             </div>
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">

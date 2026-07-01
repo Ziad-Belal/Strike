@@ -38,6 +38,7 @@ export default function ProductPage({ addToCart }) {
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const [selectedSize, setSelectedSize] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState(null);
@@ -63,6 +64,7 @@ export default function ProductPage({ addToCart }) {
     : [product.image_url].filter(Boolean);
 
   const hasSizes = product.available_sizes && product.available_sizes.length > 0;
+  const hasColors = Array.isArray(product.colors) && product.colors.length > 0;
 
   // Get size stock array — only use size_stock if it exists in DB
   const sizeStock = Array.isArray(product.size_stock) && product.size_stock.length > 0
@@ -204,6 +206,26 @@ export default function ProductPage({ addToCart }) {
             <h1 className='mt-1 text-4xl font-extrabold text-gray-900 leading-tight'>{product.name}</h1>
             <div className='mt-4 text-3xl font-bold text-gray-900'>{currency(product.price)}</div>
           </div>
+
+          {hasColors && (
+            <div className='space-y-4'>
+              <div className='text-sm font-bold text-gray-900'>Select Color</div>
+              <div className='flex flex-wrap gap-3'>
+                {product.colors.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setSelectedColor(c)}
+                    className={`rounded-xl border-2 px-5 py-3 text-base font-semibold transition-all ${selectedColor === c
+                      ? 'border-black bg-black text-white shadow-lg'
+                      : 'border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                      }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {hasSizes && (
             <div className='space-y-4'>
