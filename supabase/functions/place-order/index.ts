@@ -154,18 +154,19 @@ serve(async (req) => {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
             body: JSON.stringify({
               from: 'onboarding@resend.dev',
-              to: userInfo.email,
-              subject: 'Your Order Confirmation - Strike',
+              to: ['ziadbelal82@gmail.com'],
+              reply_to: userInfo.email,
+              subject: `Order Confirmation for ${userInfo.full_name || userInfo.email}`,
               html: `
-                <h2 style="margin-top:0">Thank you for your order!</h2>
-                <p>Hello ${userInfo.full_name || ''},</p>
-                <p>Your order has been received and is being processed.</p>
+                <h2 style="margin-top:0">Order Confirmation</h2>
+                <p><strong>This confirmation is for:</strong> ${userInfo.full_name || ''} &lt;${userInfo.email}&gt;</p>
+                <p><em>(Forward this email to the customer at: ${userInfo.email})</em></p>
                 <hr>
                 <p style="font-size:18px;font-weight:bold"><strong>Total:</strong> EGP ${total.toFixed(2)}</p>
                 <h3>Items</h3>
                 <div>${orderItemsList}</div>
                 <p style="margin-top:20px;color:#666">Order ID: ${orderId}</p>
-                <p style="color:#666">We'll send you a shipping confirmation email as soon as your order is on its way.</p>
+                <p style="color:#666">We'll send a shipping confirmation as soon as the order is on its way.</p>
               `
             })
           })

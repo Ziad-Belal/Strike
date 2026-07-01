@@ -64,13 +64,17 @@ export default function ProductPage({ addToCart }) {
 
   const hasSizes = product.available_sizes && product.available_sizes.length > 0;
 
-  // Get size stock array
-  const sizeStock = product.size_stock || (product.available_sizes ? product.available_sizes.map(s => ({ size: s, stock: product.stock || 0 })) : []);
+  // Get size stock array — only use size_stock if it exists in DB
+  const sizeStock = Array.isArray(product.size_stock) && product.size_stock.length > 0
+    ? product.size_stock
+    : (product.available_sizes || []).map(s => ({ size: s, stock: null }));
 
   // Get current selected size's stock
   const getCurrentSizeStock = () => {
     const ss = sizeStock.find(s => s.size === selectedSize || s.size === String(selectedSize));
-    return ss ? ss.stock : 0;
+    if (!ss) return 0;
+    // null means no per-size stock data — fall back to total stock
+    return ss.stock !== null ? ss.stock : (product.stock || 0);
   };
 
   const handleAddToCart = () => {
@@ -211,13 +215,13 @@ export default function ProductPage({ addToCart }) {
                     onClick={() => setSelectedSize(ss.size)}
                     className={`rounded-xl border-2 px-5 py-3 text-base font-semibold transition-all ${String(selectedSize) === String(ss.size)
                       ? 'border-black bg-black text-white shadow-lg'
-                      : ss.stock <= 0
+                      : ss.stock === 0
                         ? 'border-gray-200 text-gray-400 cursor-not-allowed opacity-50'
                         : 'border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
                       }`}
-                    disabled={ss.stock <= 0}
+                    disabled={ss.stock === 0}
                   >
-                    {ss.size} {ss.stock <= 0 ? '(Out)' : `(${ss.stock})`}
+                    {ss.size}{ss.stock === 0 ? ' (Out)' : ''}
                   </button>
                 ))}
               </div>

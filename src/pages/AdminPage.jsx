@@ -165,10 +165,10 @@ export default function AdminPage() {
 
       // Process size stock - filter out empty entries and parse stock to number
       const processedSizeStock = sizeStock
-        .filter(ss => ss.size.trim() !== '' && ss.stock.trim() !== '')
+        .filter(ss => String(ss.size).trim() !== '' && ss.stock !== '' && ss.stock !== null && ss.stock !== undefined)
         .map(ss => ({
-          size: ss.size.trim(),
-          stock: parseInt(ss.stock.trim()) || 0
+          size: String(ss.size).trim(),
+          stock: parseInt(ss.stock) || 0
         }));
 
       // Calculate total stock (sum of all size stocks)

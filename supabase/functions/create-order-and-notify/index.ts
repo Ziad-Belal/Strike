@@ -266,15 +266,15 @@ serve(async (req) => {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
           body: JSON.stringify({
             from: 'Strike Team <onboarding@resend.dev>',
-            to: userInfo.email,
-            subject: 'Thank you for your order from Strike!',
+            to: ['ziadbelal82@gmail.com'],
+            reply_to: userInfo.email,
+            subject: `Order Confirmation for ${userInfo.full_name || userInfo.email}`,
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h1 style="color: #333; border-bottom: 2px solid #000; padding-bottom: 10px;">Thank You for Your Order!</h1>
+                  <h1 style="color: #333; border-bottom: 2px solid #000; padding-bottom: 10px;">Order Confirmation</h1>
                   
-                  <p>Dear ${userInfo.full_name || 'Valued Customer'},</p>
-                  
-                  <p>Thank you for your purchase from <strong>Strike</strong>! Your order has been received and is being processed.</p>
+                  <p><strong>This confirmation is for:</strong> ${userInfo.full_name || 'Valued Customer'} &lt;${userInfo.email}&gt;</p>
+                  <p><em>(Forward this email to the customer at: ${userInfo.email})</em></p>
                   
                   <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #333;">Order Summary</h3>
@@ -289,13 +289,8 @@ serve(async (req) => {
                     <p style="font-size: 18px;"><strong>Total:</strong> EGP ${total.toFixed(2)}</p>
                   </div>
                   
-                  <p>We'll send you a shipping confirmation email with tracking information once your order is on its way.</p>
-                  
-                  <p>If you have any questions about your order, please don't hesitate to contact us.</p>
-                  
                   <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
                   <p style="color: #666; font-size: 12px;">Order ID: ${order_id}</p>
-                  <p style="color: #666; font-size: 12px;">This email was sent to ${userInfo.email}</p>
                 </div>
               `
           })
